@@ -1,0 +1,269 @@
+---
+description: Complete technical specifications for Baron game project
+globs:
+alwaysApply: true
+---
+
+# Baron Game - Complete Technical Specifications
+
+## Project Overview
+
+**Baron** is a gravity-flipping platformer game available in two versions:
+1. **Web Version**: Next.js React web application
+2. **Mobile Version**: React Native/Expo iOS app
+
+The game features a character that navigates through platforms by flipping gravity direction, collecting coins, avoiding fire hazards, and progressing through increasingly difficult levels.
+
+## System Architecture
+
+### Web Version (Next.js)
+- **Framework**: Next.js 14.2.16 with React 18
+- **Styling**: Tailwind CSS with Radix UI components
+- **Language**: TypeScript
+- **Deployment**: Vercel-ready with analytics integration
+- **Canvas**: HTML5 Canvas for game rendering
+
+### Mobile Version (iOS)
+- **Framework**: React Native with Expo SDK ~54.0.10
+- **Language**: TypeScript
+- **Audio**: Expo AV for sound effects
+- **Storage**: AsyncStorage for high scores
+- **Canvas**: React Native Canvas for game rendering
+- **Deployment**: EAS Build for App Store/TestFlight
+
+## Game Mechanics Specifications
+
+### Core Gameplay
+- **Gravity Flipping**: Player taps anywhere to instantly reverse gravity (up ↔ down) with natural mathematical curves for smooth movement
+- **Platform Navigation**: Character must land on platforms to continue
+- **Auto-scroll**: Game automatically moves forward at increasing speed
+- **Fire Hazards**: Some platforms have fire - touching them costs a life
+- **Collectibles**: 
+  - Hearts: Restore one life (up to max of 3)
+  - Coins: Increase score with visual collection effects
+
+### Scoring System
+- **Platform Passing**: Points awarded for each platform passed
+- **Coin Collection**: Additional points for coins
+- **High Score**: Local storage persistence
+- **Level Progression**: Every 20 platforms = new level
+
+### Difficulty Scaling
+- **Initial Speed**: Game starts at 1.5 speed for engaging gameplay
+- **Speed Progression**: 20% increase per level (every 20 platforms)
+- **Speed Range**: 1.5 (Level 1) → 1.8 (Level 2) → 2.16 (Level 3) → 3.111+ (Level 5+)
+- **Base Speed**: 1.5 with exponential multiplier system
+- **Fire Probability**: Higher levels have more fire hazards
+- **Gravity Strength**: Consistent gravity base (0.42)
+- **Seeded Random**: Fixed seed (12345) for consistent gameplay
+
+### Lives System
+- **Starting Lives**: 3 hearts
+- **Life Loss**: Hitting fire or falling off screen
+- **Life Recovery**: Collect heart items
+- **Game Over**: All lives lost
+
+## Technical Implementation
+
+### Game State Management
+```typescript
+interface GameState {
+  player: Player
+  platforms: Platform[]
+  clouds: Cloud[]
+  camera: { x: number; y: number }
+  gravityBase: number
+  gravityCurrentDir: number
+  gravityOldDir: number
+  gravityNewDir: number
+  gravityEffectiveDir: number
+  gravityBlending: boolean
+  gravityFlipStartTime: number
+  gravityTau: number
+  gameSpeed: number
+  score: number
+  lives: number
+  level: number
+  gameOver: boolean
+  paused: boolean
+  hearts: Heart[]
+  coins: Coin[]
+  coinEffects: CoinEffect[]
+  levelBoundaries: LevelBoundary[]
+}
+```
+
+### Physics System
+- **Gravity**: Instant snap between gravity directions with natural mathematical curves for smooth movement
+- **Collision Detection**: Rectangle-based collision for platforms
+- **Camera**: Follows player with smooth scrolling
+- **Platform Generation**: Procedural generation with seeded randomness
+
+### Speed System
+- **Base Speed**: 1.5 (initial game speed for engaging gameplay)
+- **Speed Formula**: `targetSpeed = baseSpeed * Math.pow(1.2, currentLevel - 1)`
+- **Level Calculation**: `currentLevel = Math.floor(platformsPassed / 20) + 1`
+- **Speed Application**: 
+  - Auto-scroll: `player.x += gameSpeed`
+  - Cloud movement: `cloud.x += gameSpeed * 0.5`
+- **Progression**: 20% increase every 20 platforms passed
+- **Speed Values**:
+  - Level 1 (0-19 platforms): 1.5 speed
+  - Level 2 (20-39 platforms): 1.8 speed  
+  - Level 3 (40-59 platforms): 2.16 speed
+  - Level 4 (60-79 platforms): 2.592 speed
+  - Level 5+ (80+ platforms): 3.111+ speed
+
+### Rendering System
+- **Canvas Size**: 390x468 pixels
+- **Frame Rate**: 60 FPS target
+- **Visual Effects**: Particle effects for coin collection
+- **Background**: Animated clouds with parallax scrolling
+
+## UI/UX Design Specifications
+
+### Visual Design
+- **Color Scheme**: Custom game palette with fire hazards (red)
+- **Typography**: System fonts optimized for readability
+- **Character Design**: Simple geometric character representation
+- **Platform Design**: Varied widths and colors for visual interest
+
+### User Interface
+- **Controls**: Touch/tap anywhere to flip gravity
+- **HUD Elements**:
+  - Score display (top-left)
+  - Lives indicator (hearts, top-right)
+  - Level indicator
+  - Pause button
+- **Game States**:
+  - Main menu
+  - Active gameplay
+  - Paused state
+  - Game over screen
+
+### Responsive Design
+- **Web**: Responsive canvas scaling
+- **Mobile**: Full-screen portrait orientation
+- **Accessibility**: High contrast colors, clear visual feedback
+
+## Performance Specifications
+
+### Optimization Requirements
+- **Frame Rate**: Maintain 60 FPS on target devices
+- **Memory Usage**: Efficient object pooling for platforms and effects
+- **Battery Life**: Optimized rendering loops for mobile
+- **Load Time**: Fast initial load with preloaded assets
+
+### Technical Constraints
+- **Canvas Rendering**: Efficient 2D rendering without WebGL
+- **Mobile Performance**: Optimized for iOS devices (iPhone 6s+)
+- **Storage**: Minimal local storage footprint
+- **Network**: Offline-first design with no network dependencies
+
+## Deployment Specifications
+
+### Web Deployment
+- **Platform**: Vercel
+- **Build Command**: `npm run build`
+- **Environment**: Production optimized
+- **Analytics**: Vercel Analytics integrated
+- **Domain**: Custom domain support
+
+### Mobile Deployment
+- **Platform**: iOS App Store via EAS Build
+- **Bundle ID**: `com.baroncrust.baron`
+- **Version**: 1.0.0
+- **TestFlight**: Beta testing support
+- **App Store**: Full production release
+
+### Build Process
+```bash
+# Web
+npm run build
+npm run start
+
+# Mobile
+
+eas build --platform ios
+eas submit --platform ios
+```
+
+## Asset Specifications
+
+### Images
+- **Character Sprites**: SVG format for scalability
+- **Platform Graphics**: Custom SVG designs
+- **Fire Effects**: Animated fire sprites
+- **UI Elements**: High-resolution icons and buttons
+- **Background**: Parallax cloud elements
+
+### Audio (Mobile Only)
+- **Sound Effects**: Coin collection, gravity flip, game over
+- **Format**: Optimized audio files for mobile
+- **Implementation**: Expo AV integration
+
+## Development Standards
+
+### Code Quality
+- **TypeScript**: Strict type checking enabled
+- **ESLint**: Code linting with Next.js rules
+- **Comments**: Comprehensive code documentation
+- **Error Handling**: Graceful error handling throughout
+
+### Version Control
+- **Git**: Version control with semantic commits
+- **Branching**: Feature branches for development
+- **Documentation**: README files for each major component
+
+### Testing
+- **Manual Testing**: Device-specific testing on target platforms
+- **Performance Testing**: Frame rate and memory usage validation
+- **User Testing**: Beta testing via TestFlight
+
+## Configuration Files
+
+### Web Version
+- `package.json`: Next.js dependencies and scripts
+- `tailwind.config.ts`: Tailwind CSS configuration
+- `next.config.mjs`: Next.js build configuration
+- `components.json`: Radix UI component configuration
+
+### Mobile Version
+- `app.json`: Expo configuration with iOS settings
+- `eas.json`: EAS Build configuration
+- `package.json`: React Native dependencies
+- `tsconfig.json`: TypeScript configuration
+
+## Future Enhancements
+
+### Potential Features
+- **Multiplayer**: Local or online multiplayer support
+- **Achievements**: Unlock system with rewards
+- **Power-ups**: Additional collectible items
+- **Themes**: Multiple visual themes
+- **Leaderboards**: Global high score tracking
+- **Android Support**: Expand to Android platform
+
+### Technical Improvements
+- **WebGL**: Upgrade to WebGL for better performance
+- **PWA**: Progressive Web App capabilities
+- **Analytics**: Enhanced game analytics
+- **A/B Testing**: Feature flag system
+- **Localization**: Multi-language support
+
+## Maintenance and Support
+
+### Monitoring
+- **Error Tracking**: Crash reporting for mobile
+- **Performance Monitoring**: Frame rate and load time tracking
+- **User Analytics**: Gameplay pattern analysis
+
+### Updates
+- **Hot Updates**: EAS Updates for mobile
+- **Version Control**: Semantic versioning
+- **Rollback**: Ability to rollback problematic releases
+
+### Documentation
+- **API Documentation**: Game engine documentation
+- **User Guides**: Player instruction documentation
+- **Developer Guides**: Setup and deployment instructions
