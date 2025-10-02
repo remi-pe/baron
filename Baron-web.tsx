@@ -147,6 +147,24 @@ export default function BaronWeb() {
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
 
+  // HiDPI canvas: increase backing store and scale context to avoid blur
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1))
+    // Set backing resolution
+    canvas.width = CANVAS_W * dpr
+    canvas.height = CANVAS_H * dpr
+    // Keep CSS size constant
+    ;(canvas as HTMLCanvasElement).style.width = `${CANVAS_W}px`
+    ;(canvas as HTMLCanvasElement).style.height = `${CANVAS_H}px`
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.imageSmoothingEnabled = false
+    }
+  }, [])
+
   // Load Rethink Sans font
   useEffect(() => {
     const link = document.createElement("link")
@@ -1626,11 +1644,11 @@ export default function BaronWeb() {
       const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3)
       ctx.save()
       if (st.gravityCurrentDir < 0) {
-        ctx.translate(player.x + player.width / 2, player.y + player.height / 2)
+        ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
         ctx.translate(-player.width / 2, -player.height / 2)
       } else {
-        ctx.translate(player.x, player.y)
+        ctx.translate(Math.round(player.x), Math.round(player.y))
       }
       ctx.drawImage(fireStateImageRef.current[idx], 0, 0, player.width, player.height)
       ctx.restore()
@@ -1641,11 +1659,11 @@ export default function BaronWeb() {
       }
       ctx.save()
       if (st.gravityCurrentDir < 0) {
-        ctx.translate(player.x + player.width / 2, player.y + player.height / 2)
+        ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
         ctx.translate(-player.width / 2, -player.height / 2)
       } else {
-        ctx.translate(player.x, player.y)
+        ctx.translate(Math.round(player.x), Math.round(player.y))
       }
       ctx.drawImage(characterImageRef.current[currentFrame], 0, 0, player.width, player.height)
       ctx.restore()
