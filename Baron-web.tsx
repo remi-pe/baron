@@ -88,15 +88,9 @@ interface GameState {
   clouds: Cloud[]
   camera: { x: number; y: number }
 
-  // Gravity (exponential blending)
+  // Gravity (instant flip)
   gravityBase: number // g0
-  gravityCurrentDir: number // ±1 when settled
-  gravityOldDir: number // start of blend (can be between -1..1)
-  gravityNewDir: number // target dir (±1)
-  gravityEffectiveDir: number // computed each frame
-  gravityBlending: boolean
-  gravityFlipStartTime: number // performance.now() in ms
-  gravityTau: number // seconds
+  gravityCurrentDir: number // ±1 (1 for down, -1 for up)
 
   // Runtime
   startTimeMs: number
@@ -679,10 +673,8 @@ export default function BaronWeb() {
     if (!gameStateRef.current || isGameOver || !isPlaying) return
     const st = gameStateRef.current
 
-    // Instant gravity direction flip - no blending
+    // Instant gravity direction flip
     st.gravityCurrentDir = -st.gravityCurrentDir // ±1 to ∓1
-    st.gravityEffectiveDir = st.gravityCurrentDir
-    st.gravityBlending = false // No blending needed for instant snap
 
     playVortexSound()
   }, [isGameOver, isPlaying, playVortexSound])
@@ -863,12 +855,6 @@ export default function BaronWeb() {
 
       gravityBase: 0.42, // 30% weaker baseline (back to working value)
       gravityCurrentDir: 1,
-      gravityOldDir: 1,
-      gravityNewDir: 1,
-      gravityEffectiveDir: 1,
-      gravityBlending: false,
-      gravityFlipStartTime: 0,
-      gravityTau: 0.03, // seconds; smaller = snappier, larger = softer (back to working value)
 
       // runtime
       startTimeMs,
@@ -1007,7 +993,6 @@ export default function BaronWeb() {
     const st = gameStateRef.current
     const { player, platforms, clouds, camera } = st
 
-    // Instant gravity direction - no blending needed
     const now = performance.now()
     const gravityAccel = st.gravityBase * st.gravityCurrentDir
 

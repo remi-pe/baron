@@ -92,12 +92,6 @@ interface GameState {
   camera: { x: number; y: number };
   gravityBase: number;
   gravityCurrentDir: number;
-  gravityOldDir: number;
-  gravityNewDir: number;
-  gravityEffectiveDir: number;
-  gravityBlending: boolean;
-  gravityFlipStartTime: number;
-  gravityTau: number;
   startTimeMs: number;
   gameSpeed: number;
   platformsPassed: number;
@@ -425,12 +419,6 @@ export default function BaronApp() {
       camera: { x: 0, y: 0 },
       gravityBase: 0.42,
       gravityCurrentDir: 1,
-      gravityOldDir: 1,
-      gravityNewDir: 1,
-      gravityEffectiveDir: 1,
-      gravityBlending: false,
-      gravityFlipStartTime: 0,
-      gravityTau: 0.03,
       startTimeMs,
       gameSpeed: 1.5,
       platformsPassed: 0,
