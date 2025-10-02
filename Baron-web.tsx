@@ -1747,11 +1747,11 @@ export default function BaronWeb() {
         />
 
         {isGameOver && (
-          <div className="absolute inset-0 z-20 bg-black bg-opacity-75 flex items-center justify-center rounded-b-lg rounded-t-none">
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
             <div className="relative">
               {/* Main overlay panel */}
               <div
-                className="bg-white rounded-2xl p-6 text-center shadow-2xl w-56 pt-6"
+                className="bg-white rounded-2xl p-6 text-center shadow-2xl mx-3 pt-6"
                 style={{ fontFamily: "Rethink Sans, sans-serif" }}
               >
                 {/* Branding logo */}

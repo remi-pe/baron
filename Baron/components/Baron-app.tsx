@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    width: 224,
+    width: '80%',
   },
   gameOverTitle: {
     fontSize: 24,
