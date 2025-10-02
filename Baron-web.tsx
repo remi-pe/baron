@@ -134,12 +134,14 @@ export default function BaronWeb() {
   const fireImageRef = useRef<HTMLImageElement[]>()
   const lastFrameTimeRef = useRef(0)
   const lastFireFrameTimeRef = useRef(0)
+  const lastCoinFrameTimeRef = useRef(0)
 
   const [score, setScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isGameOver, setIsGameOver] = useState(false)
   const [currentFrame, setCurrentFrame] = useState(0)
   const [currentFireFrame, setCurrentFireFrame] = useState(0)
+  const [currentCoinFrame, setCurrentCoinFrame] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
@@ -1317,12 +1319,24 @@ export default function BaronWeb() {
     ctx.restore()
   }
 
-  // Draw a simple coin
-  const drawCoin = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  // Draw a coin with 4-frame horizontal flip animation (mimics Figma variants)
+  const drawCoin = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    frame: number,
+  ) => {
     ctx.save()
     ctx.translate(x + w / 2, y + h / 2)
 
-    // Outer circle (gold)
+    // 4 frames: 0(front) -> 1(tilt) -> 2(edge) -> 3(tilt)
+    const frameToScaleX = [1, 0.5, 0.1, 0.5]
+    const sx = frameToScaleX[(frame % 4 + 4) % 4]
+    ctx.scale(sx, 1)
+
+    // Outer coin
     ctx.fillStyle = "#ffd700"
     ctx.strokeStyle = "#b8860b"
     ctx.lineWidth = 1.5
@@ -1331,18 +1345,22 @@ export default function BaronWeb() {
     ctx.fill()
     ctx.stroke()
 
-    // Inner circle (darker gold)
-    ctx.fillStyle = "#daa520"
-    ctx.beginPath()
-    ctx.arc(0, 0, w / 2 - 2, 0, Math.PI * 2)
-    ctx.fill()
+    // Inner disc only if visible enough
+    if (sx > 0.15) {
+      ctx.fillStyle = "#daa520"
+      ctx.beginPath()
+      ctx.arc(0, 0, w / 2 - 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
 
-    // Dollar sign
-    ctx.fillStyle = "#8b4513"
-    ctx.font = `${Math.floor(w * 0.6)}px Rethink Sans, sans-serif`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("$", 0, 0)
+    // Dollar sign only when mostly facing front
+    if (sx > 0.4) {
+      ctx.fillStyle = "#8b4513"
+      ctx.font = `${Math.floor(w * 0.6)}px Rethink Sans, sans-serif`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("$", 0, 0)
+    }
 
     ctx.restore()
   }
@@ -1540,11 +1558,18 @@ export default function BaronWeb() {
       }
     })
 
+    // Advance coin frame every 200ms
+    const tnow = performance.now()
+    if (tnow - lastCoinFrameTimeRef.current > 200) {
+      setCurrentCoinFrame((prev) => (prev + 1) % 4)
+      lastCoinFrameTimeRef.current = tnow
+    }
+
     // Coins (collectibles)
     st.coins.forEach((coin) => {
       if (coin.collected) return
       if (coin.x + coin.width > camera.x && coin.x < camera.x + canvas.width) {
-        drawCoin(ctx, coin.x, coin.y, coin.width, coin.height)
+        drawCoin(ctx, coin.x, coin.y, coin.width, coin.height, currentCoinFrame)
       }
     })
 
