@@ -116,12 +116,14 @@ export default function BaronApp() {
   const animationFrameRef = useRef<number>();
   const lastFrameTimeRef = useRef(0);
   const lastFireFrameTimeRef = useRef(0);
+  const lastCoinFrameTimeRef = useRef(0);
 
   const [score, setScore] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [currentFireFrame, setCurrentFireFrame] = useState(0);
+  const [currentCoinFrame, setCurrentCoinFrame] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
   const [scoreHistory, setScoreHistory] = useState<number[]>([]);
@@ -458,8 +460,117 @@ export default function BaronApp() {
     }
   }, [isGameOver, isPlaying, doFlip, startAgain]);
 
-  // Game loop and rendering logic would continue here...
-  // (This is a simplified version - the full implementation would include all the game logic)
+  // Draw a coin with 4-frame horizontal flip animation (200ms per frame)
+  const drawCoin = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      frame: number,
+    ) => {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+
+      // 4 frames: 0(front) -> 1(tilt) -> 2(edge) -> 3(tilt)
+      const frameToScaleX = [1, 0.5, 0.1, 0.5];
+      const sx = frameToScaleX[(frame % 4 + 4) % 4];
+      ctx.scale(sx, 1);
+
+      // Outer coin
+      ctx.fillStyle = '#ffd700';
+      ctx.strokeStyle = '#b8860b';
+      ctx.lineWidth = 1.5 as any;
+      ctx.beginPath();
+      ctx.arc(0, 0, w / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Inner disc only if visible enough
+      if (sx > 0.15) {
+        ctx.fillStyle = '#daa520';
+        ctx.beginPath();
+        ctx.arc(0, 0, w / 2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Dollar sign only when mostly facing front
+      if (sx > 0.4) {
+        ctx.fillStyle = '#8b4513';
+        ctx.textAlign = 'center' as any;
+        ctx.textBaseline = 'middle' as any;
+        // Font handling varies in react-native-canvas; keep simple glyph
+        // Draw a simple vertical bar to hint the $ when fonts are unavailable
+        ctx.fillRect(-1, -6, 2, 12);
+      }
+
+      ctx.restore();
+    },
+    [],
+  );
+
+  // Minimal render loop to animate coins on mobile
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let raf = 0 as any;
+    let cancelled = false;
+
+    const setupAndRun = async () => {
+      // react-native-canvas getContext may be Promise-based
+      const maybeCtx: any = (canvas as any).getContext('2d');
+      const ctx: CanvasRenderingContext2D =
+        typeof maybeCtx?.then === 'function' ? await maybeCtx : (maybeCtx as CanvasRenderingContext2D);
+
+      const render = () => {
+        if (cancelled) return;
+        const st = gameStateRef.current;
+        if (!st) {
+          raf = requestAnimationFrame(render);
+          return;
+        }
+
+        // Clear and background
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = getLevelBackgroundColor(level);
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+        // Advance coin frame every 200ms
+        const now = Date.now();
+        if (now - lastCoinFrameTimeRef.current > 200) {
+          setCurrentCoinFrame((prev) => (prev + 1) % 4);
+          lastCoinFrameTimeRef.current = now;
+        }
+
+        // Draw coins (relative to camera)
+        const camX = st.camera.x;
+        const camY = st.camera.y;
+        st.coins.forEach((coin) => {
+          if (coin.collected) return;
+          const cx = coin.x - camX;
+          const cy = coin.y - camY;
+          if (cx + coin.width > 0 && cx < CANVAS_W) {
+            // Per-coin phase to avoid synchronous flipping (stable hash from world pos)
+            const phase = (Math.floor(coin.x * 0.07 + coin.y * 0.11) & 3); // 0..3
+            const frame = (currentCoinFrame + phase) % 4;
+            drawCoin(ctx, cx, cy, coin.width, coin.height, frame);
+          }
+        });
+
+        raf = requestAnimationFrame(render);
+      };
+
+      render();
+    };
+
+    setupAndRun();
+    return () => {
+      cancelled = true;
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [level, drawCoin, currentCoinFrame]);
 
   return (
     <View style={styles.container}>

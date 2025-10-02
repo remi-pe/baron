@@ -1569,7 +1569,10 @@ export default function BaronWeb() {
     st.coins.forEach((coin) => {
       if (coin.collected) return
       if (coin.x + coin.width > camera.x && coin.x < camera.x + canvas.width) {
-        drawCoin(ctx, coin.x, coin.y, coin.width, coin.height, currentCoinFrame)
+        // Per-coin phase to avoid synchronous flipping (stable from position)
+        const phase = (Math.floor(coin.x * 0.07 + coin.y * 0.11) & 3) // 0..3
+        const frame = (currentCoinFrame + phase) % 4
+        drawCoin(ctx, coin.x, coin.y, coin.width, coin.height, frame)
       }
     })
 
