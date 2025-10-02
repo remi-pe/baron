@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'rea
 import { Canvas, CanvasRenderingContext2D } from 'react-native-canvas';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 // Game constants
 const CANVAS_W = 390;
@@ -420,7 +421,7 @@ export default function BaronApp() {
       gravityBase: 0.42,
       gravityCurrentDir: 1,
       startTimeMs,
-      gameSpeed: 1.5,
+      gameSpeed: 1.8, // Start at 1.8 speed (1.5 * 1.2)
       platformsPassed: 0,
       lastPlatformX: platforms[platforms.length - 1].x + platforms[platforms.length - 1].width + 200,
       lastCloudX: 20 * 130,
@@ -467,15 +468,25 @@ export default function BaronApp() {
         <Text style={styles.levelText}>Level {level}</Text>
         <View style={styles.heartsContainer}>
           {[1, 2, 3].map((heartIndex) => (
-            <Text
+            <Svg
               key={heartIndex}
-              style={[
-                styles.heart,
-                { color: heartIndex <= lives ? '#ef4444' : '#9ca3af' }
-              ]}
+              width={22}
+              height={22}
+              viewBox="0 0 24 24"
             >
-              {heartIndex <= lives ? '♥' : '♡'}
-            </Text>
+              <Defs>
+                <LinearGradient id={`heartGradient${heartIndex}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor={heartIndex <= lives ? "#ff6b6b" : "#d1d5db"} />
+                  <Stop offset="100%" stopColor={heartIndex <= lives ? "#c92a2a" : "#9ca3af"} />
+                </LinearGradient>
+              </Defs>
+              <Path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                fill={heartIndex <= lives ? `url(#heartGradient${heartIndex})` : "rgba(255, 255, 255, 0.4)"}
+                stroke={heartIndex <= lives ? "none" : "white"}
+                strokeWidth={heartIndex <= lives ? 0 : 1.5}
+              />
+            </Svg>
           ))}
         </View>
         <Text style={styles.scoreText}>Score: {score}</Text>
@@ -532,7 +543,7 @@ const styles = StyleSheet.create({
     width: 390,
     backgroundColor: '#064e3b',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 13,
     borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -546,10 +557,7 @@ const styles = StyleSheet.create({
   },
   heartsContainer: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  heart: {
-    fontSize: 24,
+    gap: 5,
   },
   scoreText: {
     color: 'white',

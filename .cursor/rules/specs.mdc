@@ -49,10 +49,10 @@ The game features a character that navigates through platforms by flipping gravi
 - **Level Progression**: Every 20 platforms = new level
 
 ### Difficulty Scaling
-- **Initial Speed**: Game starts at 1.5 speed for engaging gameplay
+- **Initial Speed**: Game starts at 1.8 speed for engaging gameplay
 - **Speed Progression**: 20% increase per level (every 20 platforms)
-- **Speed Range**: 1.5 (Level 1) → 1.8 (Level 2) → 2.16 (Level 3) → 3.111+ (Level 5+)
-- **Base Speed**: 1.5 with exponential multiplier system
+- **Speed Range**: 1.8 (Level 1) → 2.16 (Level 2) → 2.592 (Level 3) → 3.733+ (Level 5+)
+- **Base Speed**: 1.8 with exponential multiplier system
 - **Fire Probability**: Higher levels have more fire hazards
 - **Gravity Strength**: Consistent gravity base (0.42)
 - **Seeded Random**: Fixed seed (12345) for consistent gameplay
@@ -100,7 +100,7 @@ interface GameState {
 - **Platform Generation**: Procedural generation with seeded randomness
 
 ### Speed System
-- **Base Speed**: 1.5 (initial game speed for engaging gameplay)
+- **Base Speed**: 1.8 (initial game speed for engaging gameplay)
 - **Speed Formula**: `targetSpeed = baseSpeed * Math.pow(1.2, currentLevel - 1)`
 - **Level Calculation**: `currentLevel = Math.floor(platformsPassed / 20) + 1`
 - **Speed Application**: 
@@ -108,11 +108,11 @@ interface GameState {
   - Cloud movement: `cloud.x += gameSpeed * 0.5`
 - **Progression**: 20% increase every 20 platforms passed
 - **Speed Values**:
-  - Level 1 (0-19 platforms): 1.5 speed
-  - Level 2 (20-39 platforms): 1.8 speed  
-  - Level 3 (40-59 platforms): 2.16 speed
-  - Level 4 (60-79 platforms): 2.592 speed
-  - Level 5+ (80+ platforms): 3.111+ speed
+  - Level 1 (0-19 platforms): 1.8 speed
+  - Level 2 (20-39 platforms): 2.16 speed  
+  - Level 3 (40-59 platforms): 2.592 speed
+  - Level 4 (60-79 platforms): 3.11 speed
+  - Level 5+ (80+ platforms): 3.73+ speed
 
 ### Rendering System
 - **Canvas Size**: 390x468 pixels

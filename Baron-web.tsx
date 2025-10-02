@@ -466,9 +466,9 @@ export default function BaronWeb() {
     }
   }, [])
 
-  // Calculate fire probability based on score and elapsed time
+  // Calculate fire probability based on score and elapsed time (increased by 30%)
   const getFireProbability = useCallback((score: number, elapsedSec: number) => {
-    const clamp = (v: number, min = 0, max = 0.85) => Math.max(min, Math.min(max, v))
+    const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v))
     // Baseline terms
     const base = 0.1
     const scoreTerm = Math.min(0.5, (score / 100) * 0.05)
@@ -476,7 +476,8 @@ export default function BaronWeb() {
 
     // Early grace: reduce fires up to score 50 (e.g., at 25 → ~50% of normal)
     const graceFactor = Math.max(0.5, Math.min(1, score / 50))
-    return clamp((base + scoreTerm + timeTerm) * graceFactor)
+    // Increase fire probability by 30%
+    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.3)
   }, [])
 
   // Load character images
@@ -859,7 +860,7 @@ export default function BaronWeb() {
       // runtime
       startTimeMs,
 
-      gameSpeed: 1.5, // Start at 1.5 speed
+      gameSpeed: 1.8, // Start at 1.8 speed (1.5 * 1.2)
       platformsPassed: 0,
       lastPlatformX: platforms[platforms.length - 1].x + platforms[platforms.length - 1].width + 200,
       lastCloudX: 20 * 130,
@@ -1008,7 +1009,7 @@ export default function BaronWeb() {
     const targetSpeedBase = 1.5 + levelProgress * 1.5 // 1.5 at start, 3.0 at platform 20
 
     // Level-based speed progression - consistent speed per level, 20% increase each level
-    const baseSpeed = 1.5
+    const baseSpeed = 1.8
     const speedMultiplier = Math.pow(1.2, currentLevel - 1) // 20% increase per level
     const targetSpeed = baseSpeed * speedMultiplier
     st.gameSpeed = targetSpeed
@@ -1532,31 +1533,9 @@ export default function BaronWeb() {
           const fireHeight = 32
           const y = platform.y - fireHeight - 1
 
-          // Check if this is platform 5 (we need to track platform index)
-          const platformIndex = st.platforms.indexOf(platform)
-          const isPlatform5 = platformIndex === 4 // 0-indexed, so platform 5 is index 4
-
-          if (isPlatform5) {
-            // Multiple fires for platform 5
-            const fireCount = Math.min(5, Math.floor(platform.width / 35)) // Up to 5 fires
-            for (let i = 0; i < fireCount; i++) {
-              const fireX = platform.x + (i + 1) * (platform.width / (fireCount + 1)) - fireWidth / 2
-              ctx.drawImage(fireImageRef.current[currentFireFrame], fireX, y, fireWidth, fireHeight)
-            }
-          } else {
-            // Normal fire rendering for other platforms
-            // center
-            const centerX = platform.x + (platform.width - fireWidth) / 2
-            ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
-
-            // harder mode: sides after score threshold
-            if (score > 150 && platform.width > 150) {
-              const leftX = platform.x + 10
-              const rightX = platform.x + platform.width - fireWidth - 10
-              ctx.drawImage(fireImageRef.current[currentFireFrame], leftX, y, fireWidth, fireHeight)
-              ctx.drawImage(fireImageRef.current[currentFireFrame], rightX, y, fireWidth, fireHeight)
-            }
-          }
+          // Render single centered fire for all platforms
+          const centerX = platform.x + (platform.width - fireWidth) / 2
+          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
         }
       }
     })
@@ -1687,7 +1666,7 @@ export default function BaronWeb() {
       {/* Top panel outside the game frame */}
       <div className="w-[390px]">
         <div
-          className="px-4 py-[10px] rounded-t-lg rounded-b-none shadow-lg select-none"
+          className="px-4 py-[13px] rounded-t-lg rounded-b-none shadow-lg select-none"
           style={{
             background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
             fontFamily: "Rethink Sans, sans-serif",
@@ -1701,14 +1680,28 @@ export default function BaronWeb() {
               Level {level}
             </div>
 
-            <div className="flex items-center justify-center gap-2 leading-none select-none">
+            <div className="flex items-center justify-center gap-1 leading-none select-none">
               {[1, 2, 3].map((heartIndex) => (
-                <span
+                <svg
                   key={heartIndex}
-                  className={`text-2xl drop-shadow-lg ${heartIndex <= lives ? "text-red-500" : "text-gray-300"}`}
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  className="drop-shadow-lg"
                 >
-                  {heartIndex <= lives ? "♥" : "♡"}
-                </span>
+                  <defs>
+                    <linearGradient id={`heartGradient${heartIndex}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor={heartIndex <= lives ? "#ff6b6b" : "#d1d5db"} />
+                      <stop offset="100%" stopColor={heartIndex <= lives ? "#c92a2a" : "#9ca3af"} />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    fill={heartIndex <= lives ? `url(#heartGradient${heartIndex})` : "rgba(255, 255, 255, 0.4)"}
+                    stroke={heartIndex <= lives ? "none" : "white"}
+                    strokeWidth={heartIndex <= lives ? "0" : "1.5"}
+                  />
+                </svg>
               ))}
             </div>
 
