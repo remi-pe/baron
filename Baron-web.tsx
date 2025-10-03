@@ -954,8 +954,8 @@ export default function BaronWeb() {
   // Platform fire collision (30% overlap) - supports double fires for higher score
   const checkFireCollision = (player: Player, platform: Platform) => {
     if (!platform.hasFire) return false
-    const fireWidth = 27
-    const fireHeight = 32
+    const fireWidth = 35 // 30% bigger (27 * 1.3)
+    const fireHeight = 42 // 30% bigger (32 * 1.3)
     const fires: { x: number; y: number; width: number; height: number }[] = []
 
     const centerX = platform.x + (platform.width - fireWidth) / 2
@@ -1586,8 +1586,8 @@ export default function BaronWeb() {
             setCurrentFireFrame((prev) => (prev === 0 ? 1 : 0))
             lastFireFrameTimeRef.current = currentTime
           }
-          const fireWidth = 27
-          const fireHeight = 32
+          const fireWidth = 35 // 30% bigger (27 * 1.3)
+          const fireHeight = 42 // 30% bigger (32 * 1.3)
           const y = platform.y - fireHeight - 1
 
           // Render single centered fire for all platforms
