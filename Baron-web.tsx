@@ -514,7 +514,7 @@ export default function BaronWeb() {
     let loadedCount = 0
     const onLoad = () => {
       loadedCount++
-      if (loadedCount === 3) characterImageRef.current = [img1, img1_5, img2]
+      if (loadedCount === 6) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
     }
     img1.onload = onLoad
     img1_5.onload = onLoad
@@ -535,7 +535,7 @@ export default function BaronWeb() {
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 3) fireStateImageRef.current = [fire1, fire2, fire3]
+      if (loaded === 6) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
     }
     fire1.onload = onLoad
     fire2.onload = onLoad
@@ -1597,7 +1597,7 @@ export default function BaronWeb() {
         // Stylized platform (grass + fringe + dirt)
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
-        // Platform fire drawing
+        // Platform fire/drop drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
           const currentTime = Date.now()
           if (currentTime - lastFireFrameTimeRef.current > 300) {
@@ -1608,9 +1608,36 @@ export default function BaronWeb() {
           const fireHeight = 42 // 30% bigger (32 * 1.3)
           const y = platform.y - fireHeight - 1
 
-          // Render single centered fire for all platforms
-          const centerX = platform.x + (platform.width - fireWidth) / 2
-          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
+          // 50% chance to render fire or water drop
+          const isDrop = Math.random() < 0.5
+          
+          if (isDrop) {
+            // Draw water drop (blue teardrop shape)
+            const centerX = platform.x + (platform.width - fireWidth) / 2
+            ctx.save()
+            ctx.translate(centerX + fireWidth / 2, y + fireHeight / 2)
+            
+            // Drop body (blue)
+            ctx.fillStyle = "#4A90E2"
+            ctx.strokeStyle = "#2E5BBA"
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.ellipse(0, fireHeight / 4, fireWidth / 2, fireHeight / 2, 0, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.stroke()
+            
+            // Drop tip (darker blue)
+            ctx.fillStyle = "#2E5BBA"
+            ctx.beginPath()
+            ctx.ellipse(0, -fireHeight / 4, fireWidth / 3, fireHeight / 3, 0, 0, Math.PI * 2)
+            ctx.fill()
+            
+            ctx.restore()
+          } else {
+            // Render fire
+            const centerX = platform.x + (platform.width - fireWidth) / 2
+            ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
+          }
         }
       }
     })
@@ -1680,7 +1707,7 @@ export default function BaronWeb() {
     const showFireState = st.invulnerable && now - st.fireStateStartTime < 1800
 
     if (showFireState && fireStateImageRef.current) {
-      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3)
+      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 6)
       ctx.save()
       if (st.gravityCurrentDir < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -1693,7 +1720,7 @@ export default function BaronWeb() {
       ctx.restore()
     } else if (characterImageRef.current) {
       if (Date.now() - lastFrameTimeRef.current > 100) {
-        setCurrentFrame((prev) => (prev + 1) % 3)
+        setCurrentFrame((prev) => (prev + 1) % 6)
         lastFrameTimeRef.current = Date.now()
       }
       ctx.save()
