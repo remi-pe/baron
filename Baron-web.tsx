@@ -514,7 +514,7 @@ export default function BaronWeb() {
     let loadedCount = 0
     const onLoad = () => {
       loadedCount++
-      if (loadedCount === 6) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
+      if (loadedCount === 3) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
     }
     img1.onload = onLoad
     img1_5.onload = onLoad
@@ -535,7 +535,7 @@ export default function BaronWeb() {
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 6) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
+      if (loaded === 3) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
     }
     fire1.onload = onLoad
     fire2.onload = onLoad
