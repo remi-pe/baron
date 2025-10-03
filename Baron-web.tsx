@@ -676,9 +676,36 @@ export default function BaronWeb() {
 
     platforms.forEach((platform) => {
       // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
-      if (!platform.hasFire && gameRandom.next() < 0.78) {
-        const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
-        const coinY = platform.y - COIN_H - 8
+      if (gameRandom.next() < 0.78) {
+        // Calculate fire/drop position to avoid overlap
+        const fireWidth = 35
+        const fireHeight = 42
+        const dropWidth = fireWidth * 0.5
+        const dropHeight = fireHeight * 0.5
+        
+        let coinX, coinY
+        let attempts = 0
+        const maxAttempts = 10
+        
+        do {
+          // Try to place coin in different positions
+          if (platform.hasFire) {
+            // For platforms with fire/drop, place coin on the side
+            const side = gameRandom.next() < 0.5 ? 'left' : 'right'
+            if (side === 'left') {
+              coinX = platform.x + 20 + (gameRandom.next() * 30) // Left side
+            } else {
+              coinX = platform.x + platform.width - 50 + (gameRandom.next() * 30) // Right side
+            }
+            coinY = platform.y - COIN_H - 8
+          } else {
+            // For platforms without fire, place coin anywhere
+            coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
+            coinY = platform.y - COIN_H - 8
+          }
+          attempts++
+        } while (attempts < maxAttempts && platform.hasFire && 
+                 Math.abs(coinX - (platform.x + platform.width / 2)) < 40) // Avoid center area where fire/drop is
 
         coins.push({
           x: Math.round(coinX),
