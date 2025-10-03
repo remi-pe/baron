@@ -1622,7 +1622,7 @@ export default function BaronWeb() {
             const dropWidth = fireWidth * 0.5
             const dropHeight = fireHeight * 0.5
             const centerX = platform.x + (platform.width - dropWidth) / 2
-            const dropY = platform.y - dropHeight - 1
+            const dropY = platform.y - dropHeight - 8 // Place higher on platform
             
             // Create image from SVG
             const dropImg = new Image()
