@@ -1618,31 +1618,18 @@ export default function BaronWeb() {
           const isDrop = seed % 2 === 0 // 50% chance based on position
           
           if (isDrop) {
-            // Draw water drop (blue teardrop shape) - 50% size
+            // Draw water drop using SVG design - 50% size
             const dropWidth = fireWidth * 0.5
             const dropHeight = fireHeight * 0.5
             const centerX = platform.x + (platform.width - dropWidth) / 2
             const dropY = platform.y - dropHeight - 1
             
-            ctx.save()
-            ctx.translate(centerX + dropWidth / 2, dropY + dropHeight / 2)
-            
-            // Drop body (blue)
-            ctx.fillStyle = "#4A90E2"
-            ctx.strokeStyle = "#2E5BBA"
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.ellipse(0, dropHeight / 4, dropWidth / 2, dropHeight / 2, 0, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.stroke()
-            
-            // Drop tip (darker blue)
-            ctx.fillStyle = "#2E5BBA"
-            ctx.beginPath()
-            ctx.ellipse(0, -dropHeight / 4, dropWidth / 3, dropHeight / 3, 0, 0, Math.PI * 2)
-            ctx.fill()
-            
-            ctx.restore()
+            // Create image from SVG
+            const dropImg = new Image()
+            dropImg.onload = () => {
+              ctx.drawImage(dropImg, centerX, dropY, dropWidth, dropHeight)
+            }
+            dropImg.src = '/Drop.svg'
           } else {
             // Render fire
             const centerX = platform.x + (platform.width - fireWidth) / 2
