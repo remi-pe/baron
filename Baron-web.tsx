@@ -42,6 +42,7 @@ interface Platform {
   color: string
   passed?: boolean
   hasFire?: boolean
+  id?: number // Platform number for debugging
 }
 
 interface Cloud {
@@ -158,6 +159,7 @@ export default function BaronWeb() {
   const [showPlatformNumbers, setShowPlatformNumbers] = useState(false)
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
+  const [nextPlatformId, setNextPlatformId] = useState(1)
 
   // HiDPI canvas: increase backing store and scale context to avoid blur
   useEffect(() => {
@@ -652,6 +654,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(currentScore, elapsedSec),
+        id: nextPlatformId + i, // Assign unique platform ID
       })
 
       currentX += step
@@ -747,7 +750,7 @@ export default function BaronWeb() {
     const initialElapsedSec = 0
 
     const platforms: Platform[] = [
-      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: false },
+      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: false, id: 1 },
       {
         x: 170,
         y: 100,
@@ -756,6 +759,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        id: 2,
       },
       {
         x: 330,
@@ -765,6 +769,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        id: 3,
       },
       {
         x: 480,
@@ -774,6 +779,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        id: 4,
       },
       {
         x: 640,
@@ -783,6 +789,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        id: 5,
       },
     ]
 
@@ -858,6 +865,9 @@ export default function BaronWeb() {
 
     const generatedPlatforms = generatePlatforms(800, 20)
     platforms.push(...generatedPlatforms)
+    
+    // Set next platform ID for future platforms
+    setNextPlatformId(6) // Start from 6 since we have platforms 1-5
 
     // Manual placement tweaks:
     // 1) Place platform 25 closer to platform 24 (horizontal only)
@@ -1098,6 +1108,9 @@ export default function BaronWeb() {
       platforms.push(...newPlatforms)
       const tail = newPlatforms[newPlatforms.length - 1]
       st.lastPlatformX = tail.x + tail.width + 200
+      
+      // Update next platform ID
+      setNextPlatformId(prev => prev + newPlatforms.length)
 
       // Generate coins for new platforms
       const newCoins = generateCoinsForPlatforms(newPlatforms)
@@ -1610,7 +1623,7 @@ export default function BaronWeb() {
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
         // Platform number (dev tool)
-        if (showPlatformNumbers) {
+        if (showPlatformNumbers && platform.id) {
           ctx.save()
           ctx.fillStyle = "#ff0000"
           ctx.font = "bold 20px Arial"
@@ -1618,7 +1631,7 @@ export default function BaronWeb() {
           ctx.textBaseline = "middle"
           const numberX = platform.x + platform.width / 2
           const numberY = platform.y + platform.height + 15 // Further down
-          ctx.fillText((index + 1).toString(), numberX, numberY)
+          ctx.fillText(platform.id.toString(), numberX, numberY)
           ctx.restore()
         }
 
