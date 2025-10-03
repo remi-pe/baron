@@ -42,6 +42,7 @@ interface Platform {
   color: string
   passed?: boolean
   hasFire?: boolean
+  hasDrop?: boolean
   id?: number // Platform number for debugging
 }
 
@@ -144,6 +145,7 @@ export default function BaronWeb() {
   const fireStateImageRef = useRef<HTMLImageElement[] | null>(null)
   const cloudImageRef = useRef<HTMLImageElement>()
   const fireImageRef = useRef<HTMLImageElement[]>()
+  const dropImageRef = useRef<HTMLImageElement>()
   const lastFrameTimeRef = useRef(0)
   const lastFireFrameTimeRef = useRef(0)
   const lastCoinFrameTimeRef = useRef(0)
@@ -564,21 +566,31 @@ export default function BaronWeb() {
     cloudImg.onload = () => (cloudImageRef.current = cloudImg)
   }, [])
 
-  // Load platform drop images
+  // Load platform fire images
   useEffect(() => {
-    const drop1 = new Image()
-    const drop2 = new Image()
-    drop1.crossOrigin = "anonymous"
-    drop2.crossOrigin = "anonymous"
-    drop1.src = "/drop.svg"
-    drop2.src = "/drop.svg" // Use same image for both frames
+    const fire1 = new Image()
+    const fire2 = new Image()
+    fire1.crossOrigin = "anonymous"
+    fire2.crossOrigin = "anonymous"
+    fire1.src = "/fire_1.svg"
+    fire2.src = "/fire_2.svg"
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 2) fireImageRef.current = [drop1, drop2]
+      if (loaded === 2) fireImageRef.current = [fire1, fire2]
     }
-    drop1.onload = onLoad
-    drop2.onload = onLoad
+    fire1.onload = onLoad
+    fire2.onload = onLoad
+  }, [])
+
+  // Load drop image
+  useEffect(() => {
+    const drop = new Image()
+    drop.crossOrigin = "anonymous"
+    drop.src = "https://www.dropbox.com/scl/fi/zvz8azjp0cwnjuhfd299x/Drop.svg?rlkey=fm2gcoxjeg3y8g0cn11vjksfb&dl=1"
+    drop.onload = () => {
+      dropImageRef.current = drop
+    }
   }, [])
 
   // Generate clouds
@@ -654,6 +666,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(currentScore, elapsedSec),
+        hasDrop: gameRandom.next() < 0.3, // 30% chance for drop
         id: startId + i, // Assign unique platform ID
       })
 
@@ -750,7 +763,7 @@ export default function BaronWeb() {
     const initialElapsedSec = 0
 
     const platforms: Platform[] = [
-      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: false, id: 1 },
+      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, id: 1 },
       {
         x: 170,
         y: 100,
@@ -759,6 +772,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        hasDrop: gameRandom.next() < 0.3,
         id: 2,
       },
       {
@@ -769,6 +783,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        hasDrop: gameRandom.next() < 0.3,
         id: 3,
       },
       {
@@ -779,6 +794,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        hasDrop: gameRandom.next() < 0.3,
         id: 4,
       },
       {
@@ -789,6 +805,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
+        hasDrop: gameRandom.next() < 0.3,
         id: 5,
       },
     ]
@@ -864,29 +881,6 @@ export default function BaronWeb() {
     }
 
     const generatedPlatforms = generatePlatforms(800, 20, 6) // Start from ID 6
-    
-    // Ensure platform 6 (first generated) is reachable from platform 5
-    if (generatedPlatforms.length > 0 && platforms.length >= 5) {
-      const platform5 = platforms[4] // Platform 5 (index 4)
-      const platform6 = generatedPlatforms[0] // Platform 6 (first generated)
-      
-      // Ensure platform 6 is not too far vertically from platform 5
-      const maxVerticalGap = 100 // Maximum safe vertical distance
-      const verticalDistance = Math.abs(platform6.y - platform5.y)
-      
-      if (verticalDistance > maxVerticalGap) {
-        // Adjust platform 6 to be closer vertically to platform 5
-        const direction = platform6.y > platform5.y ? -1 : 1
-        platform6.y = platform5.y + direction * maxVerticalGap
-        
-        // Clamp to bounds
-        platform6.y = Math.max(TOP_BOUND + 32, Math.min(platform6.y, BOTTOM_BOUND - 32))
-      }
-      
-      // Add fire to platform 6
-      platform6.hasFire = true
-    }
-    
     platforms.push(...generatedPlatforms)
     
     // Update next platform ID after generating platforms
@@ -1658,20 +1652,31 @@ export default function BaronWeb() {
           ctx.restore()
         }
 
-        // Platform drop drawing
+        // Platform fire drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
           const currentTime = Date.now()
           if (currentTime - lastFireFrameTimeRef.current > 300) {
             setCurrentFireFrame((prev) => (prev === 0 ? 1 : 0))
             lastFireFrameTimeRef.current = currentTime
           }
-          const dropWidth = 35 // 30% bigger (27 * 1.3)
-          const dropHeight = 42 // 30% bigger (32 * 1.3)
-          const y = platform.y - dropHeight - 1
+          const fireWidth = 35 // 30% bigger (27 * 1.3)
+          const fireHeight = 42 // 30% bigger (32 * 1.3)
+          const y = platform.y - fireHeight - 1
 
-          // Render single centered drop for all platforms
-          const centerX = platform.x + (platform.width - dropWidth) / 2
-          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, dropWidth, dropHeight)
+          // Render single centered fire for all platforms
+          const centerX = platform.x + (platform.width - fireWidth) / 2
+          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
+        }
+
+        // Platform drop drawing
+        if (platform.hasDrop && dropImageRef.current) {
+          const dropWidth = 24
+          const dropHeight = 32
+          const dropY = platform.y - dropHeight - 1
+          
+          // Render drop on the right side of platform
+          const dropX = platform.x + platform.width - dropWidth - 5
+          ctx.drawImage(dropImageRef.current, dropX, dropY, dropWidth, dropHeight)
         }
       }
     })
