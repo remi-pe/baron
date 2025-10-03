@@ -863,11 +863,14 @@ export default function BaronWeb() {
       }
     }
 
+    // Set next platform ID before generating platforms
+    setNextPlatformId(6) // Start from 6 since we have platforms 1-5
+    
     const generatedPlatforms = generatePlatforms(800, 20)
     platforms.push(...generatedPlatforms)
     
-    // Set next platform ID for future platforms
-    setNextPlatformId(6) // Start from 6 since we have platforms 1-5
+    // Update next platform ID after generating platforms
+    setNextPlatformId(26) // Next platforms will start from 26
 
     // Manual placement tweaks:
     // 1) Place platform 25 closer to platform 24 (horizontal only)
