@@ -1680,7 +1680,7 @@ export default function BaronWeb() {
     const showFireState = st.invulnerable && now - st.fireStateStartTime < 1800
 
     if (showFireState && fireStateImageRef.current) {
-      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 6) // Doubled from 3 to 6 frames
+      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3) // Back to 3 frames to match available images
       ctx.save()
       if (st.gravityCurrentDir < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -1693,7 +1693,7 @@ export default function BaronWeb() {
       ctx.restore()
     } else if (characterImageRef.current) {
       if (Date.now() - lastFrameTimeRef.current > 100) {
-        setCurrentFrame((prev) => (prev + 1) % 6) // Doubled from 3 to 6 frames
+        setCurrentFrame((prev) => (prev + 1) % 3) // Back to 3 frames to match available images
         lastFrameTimeRef.current = Date.now()
       }
       ctx.save()
