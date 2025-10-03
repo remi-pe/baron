@@ -259,8 +259,8 @@ export default function BaronApp() {
   // Generate platforms (dynamic difficulty)
   const generatePlatforms = (startX: number, count = 10) => {
     const newPlatforms: Platform[] = [];
-    const characterHeight = 32;
-    const minSpacing = characterHeight * 2;
+    const runnerHeight = 32; // Character height (named "runner")
+    const minSpacing = runnerHeight * 2;
     const platformHeight = 8;
 
     let currentX = startX;
@@ -304,6 +304,26 @@ export default function BaronApp() {
       });
 
       currentX += step;
+    }
+
+    // Ensure minimum vertical spacing between overlapping platforms
+    newPlatforms.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < newPlatforms.length; i++) {
+      const current = newPlatforms[i];
+      const previous = newPlatforms[i - 1];
+      const minVSpace = runnerHeight; // Minimum vertical gap = runner height
+      const pHeight = 8;
+      const horizontalOverlap = !(current.x > previous.x + previous.width || previous.x > current.x + current.width);
+      if (horizontalOverlap) {
+        const verticalDistance = Math.abs(current.y - previous.y);
+        if (verticalDistance < minVSpace) {
+          if (current.y > previous.y) {
+            current.y = Math.min(previous.y + minVSpace, BOTTOM_BOUND - pHeight - minVSpace / 2);
+          } else {
+            current.y = Math.max(previous.y - minVSpace, TOP_BOUND + minVSpace / 2);
+          }
+        }
+      }
     }
 
     return newPlatforms;

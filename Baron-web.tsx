@@ -589,8 +589,8 @@ export default function BaronWeb() {
   // Generate platforms (dynamic difficulty)
   const generatePlatforms = (startX: number, count = 10) => {
     const newPlatforms: Platform[] = []
-    const characterHeight = 32
-    const minSpacing = characterHeight * 2 // 64px
+    const runnerHeight = 32 // Character height (named "runner")
+    const minSpacing = runnerHeight * 2 // 64px
     const platformHeight = 8
 
     let currentX = startX
@@ -646,7 +646,7 @@ export default function BaronWeb() {
     for (let i = 1; i < newPlatforms.length; i++) {
       const current = newPlatforms[i]
       const previous = newPlatforms[i - 1]
-      const minVSpace = 64
+      const minVSpace = runnerHeight // Minimum vertical gap = runner height
       const pHeight = 8
       const horizontalOverlap = !(current.x > previous.x + previous.width || previous.x > current.x + current.width)
       if (horizontalOverlap) {
