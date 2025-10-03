@@ -476,33 +476,46 @@ export default function BaronApp() {
       // 4 frames: 0(front) -> 1(tilt) -> 2(edge) -> 3(tilt)
       const frameToScaleX = [1, 0.5, 0.1, 0.5];
       const sx = frameToScaleX[(frame % 4 + 4) % 4];
-      ctx.scale(sx, 1);
+      
+      // Special rendering for edge state (frame 2)
+      if (frame === 2) {
+        // Draw thin vertical bar for edge view
+        const barWidth = Math.max(1, w * 0.05); // Very thin bar
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 1 as any;
+        ctx.fillRect(-barWidth / 2, -h / 2, barWidth, h);
+        ctx.strokeRect(-barWidth / 2, -h / 2, barWidth, h);
+      } else {
+        // Normal coin rendering for other frames
+        ctx.scale(sx, 1);
 
-      // Outer coin
-      ctx.fillStyle = '#ffd700';
-      ctx.strokeStyle = '#b8860b';
-      ctx.lineWidth = 1.5 as any;
-      ctx.beginPath();
-      ctx.arc(0, 0, w / 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Inner disc only if visible enough
-      if (sx > 0.15) {
-        ctx.fillStyle = '#daa520';
+        // Outer coin
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 1.5 as any;
         ctx.beginPath();
-        ctx.arc(0, 0, w / 2 - 2, 0, Math.PI * 2);
+        ctx.arc(0, 0, w / 2, 0, Math.PI * 2);
         ctx.fill();
-      }
+        ctx.stroke();
 
-      // Dollar sign only when mostly facing front
-      if (sx > 0.4) {
-        ctx.fillStyle = '#8b4513';
-        ctx.textAlign = 'center' as any;
-        ctx.textBaseline = 'middle' as any;
-        // Font handling varies in react-native-canvas; keep simple glyph
-        // Draw a simple vertical bar to hint the $ when fonts are unavailable
-        ctx.fillRect(-1, -6, 2, 12);
+        // Inner disc only if visible enough
+        if (sx > 0.15) {
+          ctx.fillStyle = '#daa520';
+          ctx.beginPath();
+          ctx.arc(0, 0, w / 2 - 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Dollar sign only when mostly facing front
+        if (sx > 0.4) {
+          ctx.fillStyle = '#8b4513';
+          ctx.textAlign = 'center' as any;
+          ctx.textBaseline = 'middle' as any;
+          // Font handling varies in react-native-canvas; keep simple glyph
+          // Draw a simple vertical bar to hint the $ when fonts are unavailable
+          ctx.fillRect(-1, -6, 2, 12);
+        }
       }
 
       ctx.restore();
