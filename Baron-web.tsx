@@ -601,7 +601,7 @@ export default function BaronWeb() {
   }
 
   // Generate platforms (dynamic difficulty)
-  const generatePlatforms = (startX: number, count = 10) => {
+  const generatePlatforms = (startX: number, count = 10, startId = 1) => {
     const newPlatforms: Platform[] = []
     const runnerHeight = 32 // Character height (named "runner")
     const minSpacing = runnerHeight * 2 // 64px
@@ -654,7 +654,7 @@ export default function BaronWeb() {
         color: "#8B4513",
         passed: false,
         hasFire: gameRandom.next() < getFireProbability(currentScore, elapsedSec),
-        id: nextPlatformId + i, // Assign unique platform ID
+        id: startId + i, // Assign unique platform ID
       })
 
       currentX += step
@@ -863,10 +863,7 @@ export default function BaronWeb() {
       }
     }
 
-    // Set next platform ID before generating platforms
-    setNextPlatformId(6) // Start from 6 since we have platforms 1-5
-    
-    const generatedPlatforms = generatePlatforms(800, 20)
+    const generatedPlatforms = generatePlatforms(800, 20, 6) // Start from ID 6
     platforms.push(...generatedPlatforms)
     
     // Update next platform ID after generating platforms
@@ -1107,7 +1104,7 @@ export default function BaronWeb() {
 
     // Generate more platforms
     if (player.x > st.lastPlatformX - 800) {
-      const newPlatforms = generatePlatforms(st.lastPlatformX, 12)
+      const newPlatforms = generatePlatforms(st.lastPlatformX, 12, nextPlatformId)
       platforms.push(...newPlatforms)
       const tail = newPlatforms[newPlatforms.length - 1]
       st.lastPlatformX = tail.x + tail.width + 200
