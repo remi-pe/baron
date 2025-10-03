@@ -227,14 +227,15 @@ export default function BaronApp() {
     return colors[(level - 1) % colors.length];
   }, []);
 
-  // Calculate fire probability based on score and elapsed time
+  // Calculate fire probability based on score and elapsed time (increased by 50%)
   const getFireProbability = useCallback((score: number, elapsedSec: number) => {
-    const clamp = (v: number, min = 0, max = 0.85) => Math.max(min, Math.min(max, v));
+    const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
     const base = 0.1;
     const scoreTerm = Math.min(0.5, (score / 100) * 0.05);
     const timeTerm = Math.min(0.25, (elapsedSec / 60) * 0.05);
     const graceFactor = Math.max(0.5, Math.min(1, score / 50));
-    return clamp((base + scoreTerm + timeTerm) * graceFactor);
+    // Increase fire probability by 50%
+    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.5);
   }, []);
 
   // Generate clouds

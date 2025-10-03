@@ -486,7 +486,7 @@ export default function BaronWeb() {
     }
   }, [])
 
-  // Calculate fire probability based on score and elapsed time (increased by 30%)
+  // Calculate fire probability based on score and elapsed time (increased by 50%)
   const getFireProbability = useCallback((score: number, elapsedSec: number) => {
     const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v))
     // Baseline terms
@@ -496,8 +496,8 @@ export default function BaronWeb() {
 
     // Early grace: reduce fires up to score 50 (e.g., at 25 → ~50% of normal)
     const graceFactor = Math.max(0.5, Math.min(1, score / 50))
-    // Increase fire probability by 30%
-    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.3)
+    // Increase fire probability by 50% (was 30%)
+    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.5)
   }, [])
 
   // Load character images
@@ -514,7 +514,7 @@ export default function BaronWeb() {
     let loadedCount = 0
     const onLoad = () => {
       loadedCount++
-      if (loadedCount === 3) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
+      if (loadedCount === 6) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
     }
     img1.onload = onLoad
     img1_5.onload = onLoad
@@ -535,7 +535,7 @@ export default function BaronWeb() {
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 3) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
+      if (loaded === 6) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
     }
     fire1.onload = onLoad
     fire2.onload = onLoad
@@ -676,36 +676,9 @@ export default function BaronWeb() {
 
     platforms.forEach((platform) => {
       // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
-      if (gameRandom.next() < 0.78) {
-        // Calculate fire/drop position to avoid overlap
-        const fireWidth = 35
-        const fireHeight = 42
-        const dropWidth = fireWidth * 0.5
-        const dropHeight = fireHeight * 0.5
-        
-        let coinX, coinY
-        let attempts = 0
-        const maxAttempts = 10
-        
-        do {
-          // Try to place coin in different positions
-          if (platform.hasFire) {
-            // For platforms with fire/drop, place coin on the side
-            const side = gameRandom.next() < 0.5 ? 'left' : 'right'
-            if (side === 'left') {
-              coinX = platform.x + 20 + (gameRandom.next() * 30) // Left side
-            } else {
-              coinX = platform.x + platform.width - 50 + (gameRandom.next() * 30) // Right side
-            }
-            coinY = platform.y - COIN_H - 8
-          } else {
-            // For platforms without fire, place coin anywhere
-            coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
-            coinY = platform.y - COIN_H - 8
-          }
-          attempts++
-        } while (attempts < maxAttempts && platform.hasFire && 
-                 Math.abs(coinX - (platform.x + platform.width / 2)) < 40) // Avoid center area where fire/drop is
+      if (!platform.hasFire && gameRandom.next() < 0.78) {
+        const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
+        const coinY = platform.y - COIN_H - 8
 
         coins.push({
           x: Math.round(coinX),
@@ -802,11 +775,6 @@ export default function BaronWeb() {
     ]
 
     const coins = generateCoinsForPlatforms(platforms)
-
-    // Add drop to platform 3 (index 2)
-    if (platforms.length >= 3) {
-      platforms[2].hasFire = true // Ensure platform 3 has fire/drop
-    }
 
     // Add extra coins to platform 4 (index 3)
     if (platforms.length >= 4) {
@@ -1001,48 +969,37 @@ export default function BaronWeb() {
     rect1.y < rect2.y + rect2.height &&
     rect1.y + rect1.height > rect2.y
 
-  // Platform fire/drop collision (30% overlap) - fire gains life, drop loses life
+  // Platform fire collision (30% overlap) - supports double fires for higher score
   const checkFireCollision = (player: Player, platform: Platform) => {
-    if (!platform.hasFire) return { collision: false, type: null }
+    if (!platform.hasFire) return false
     const fireWidth = 35 // 30% bigger (27 * 1.3)
     const fireHeight = 42 // 30% bigger (32 * 1.3)
-    const dropWidth = fireWidth * 0.5
-    const dropHeight = fireHeight * 0.5
+    const fires: { x: number; y: number; width: number; height: number }[] = []
 
-    // Use platform position as seed for consistent fire/drop choice
-    const seed = Math.floor(platform.x / 100) + Math.floor(platform.y / 50)
-    const isDrop = seed % 2 === 0 // 50% chance based on position
+    const centerX = platform.x + (platform.width - fireWidth) / 2
+    const y = platform.y - fireHeight - 1
+    fires.push({ x: centerX, y, width: fireWidth, height: fireHeight })
 
-    if (isDrop) {
-      // Check collision with drop (loses life)
-      const dropX = platform.x + (platform.width - dropWidth) / 2
-      const dropY = platform.y - dropHeight - 8
-
-      const overlapLeft = Math.max(player.x, dropX)
-      const overlapRight = Math.min(player.x + player.width, dropX + dropWidth)
-      const overlapTop = Math.max(player.y, dropY)
-      const overlapBottom = Math.min(player.y + player.height, dropY + dropHeight)
-      if (overlapLeft < overlapRight && overlapTop < overlapBottom) {
-        const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
-        const playerArea = player.width * player.height
-        if (overlapArea / playerArea >= 0.3) return { collision: true, type: 'drop' }
-      }
-    } else {
-      // Check collision with fire (gains life)
-      const fireX = platform.x + (platform.width - fireWidth) / 2
-      const fireY = platform.y - fireHeight - 1
-
-      const overlapLeft = Math.max(player.x, fireX)
-      const overlapRight = Math.min(player.x + player.width, fireX + fireWidth)
-      const overlapTop = Math.max(player.y, fireY)
-      const overlapBottom = Math.min(player.y + player.height, fireY + fireHeight)
-      if (overlapLeft < overlapRight && overlapTop < overlapBottom) {
-        const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
-        const playerArea = player.width * player.height
-        if (overlapArea / playerArea >= 0.3) return { collision: true, type: 'fire' }
-      }
+    // After score 150 and wide platform, add two side fires to increase difficulty
+    const currentScore = gameStateRef.current?.platformsPassed || 0
+    if (currentScore > 150 && platform.width > 150) {
+      const leftX = platform.x + 10
+      const rightX = platform.x + platform.width - fireWidth - 10
+      fires.push({ x: leftX, y, width: fireWidth, height: fireHeight })
+      fires.push({ x: rightX, y, width: fireWidth, height: fireHeight })
     }
-    return { collision: false, type: null }
+
+    for (const fire of fires) {
+      const overlapLeft = Math.max(player.x, fire.x)
+      const overlapRight = Math.min(player.x + player.width, fire.x + fire.width)
+      const overlapTop = Math.max(player.y, fire.y)
+      const overlapBottom = Math.min(player.y + player.height, fire.y + fire.height)
+      if (overlapLeft >= overlapRight || overlapTop >= overlapBottom) continue
+      const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
+      const playerArea = player.width * player.height
+      if (overlapArea / playerArea >= 0.3) return true
+    }
+    return false
   }
 
   // Try to spawn a heart on a platform ahead of the player
@@ -1182,37 +1139,22 @@ export default function BaronWeb() {
     // Platform collisions and scoring
     player.onGround = false
     for (const platform of st.platforms) {
-      // Fire/drop collision on platform
-      if (!st.invulnerable) {
-        const collisionResult = checkFireCollision(player, platform)
-        if (collisionResult.collision) {
-          if (collisionResult.type === 'drop') {
-            // Drop collision - loses life
-            playOuchSound()
-            const newLives = lives - 1
-            setLives(newLives)
-            if (newLives <= 0) {
-              // Save score and check if it's a new best
-              saveScoreToHistory(score)
-              setIsGameOver(true)
-              setIsPlaying(false)
-              playGameOverMusic()
-              return
-            } else {
-              st.invulnerable = true
-              st.invulnerableTime = Date.now() + 2000
-              st.fireStateStartTime = Date.now()
-            }
-          } else if (collisionResult.type === 'fire') {
-            // Fire collision - gains life (max 3)
-            if (lives < 3) {
-              const newLives = lives + 1
-              setLives(newLives)
-              // Brief invulnerability to prevent multiple gains (no fire state for beneficial fire)
-              st.invulnerable = true
-              st.invulnerableTime = Date.now() + 1000
-            }
-          }
+      // Fire collision on platform
+      if (!st.invulnerable && checkFireCollision(player, platform)) {
+        playOuchSound()
+        const newLives = lives - 1
+        setLives(newLives)
+        if (newLives <= 0) {
+          // Save score and check if it's a new best
+          saveScoreToHistory(score)
+          setIsGameOver(true)
+          setIsPlaying(false)
+          playGameOverMusic()
+          return
+        } else {
+          st.invulnerable = true
+          st.invulnerableTime = Date.now() + 2000
+          st.fireStateStartTime = Date.now()
         }
       }
 
@@ -1655,7 +1597,7 @@ export default function BaronWeb() {
         // Stylized platform (grass + fringe + dirt)
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
-        // Platform fire/drop drawing
+        // Platform fire drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
           const currentTime = Date.now()
           if (currentTime - lastFireFrameTimeRef.current > 300) {
@@ -1666,28 +1608,9 @@ export default function BaronWeb() {
           const fireHeight = 42 // 30% bigger (32 * 1.3)
           const y = platform.y - fireHeight - 1
 
-          // Use platform position as seed for consistent fire/drop choice
-          const seed = Math.floor(platform.x / 100) + Math.floor(platform.y / 50)
-          const isDrop = seed % 2 === 0 // 50% chance based on position
-          
-          if (isDrop) {
-            // Draw water drop using SVG design - 50% size
-            const dropWidth = fireWidth * 0.5
-            const dropHeight = fireHeight * 0.5
-            const centerX = platform.x + (platform.width - dropWidth) / 2
-            const dropY = platform.y - dropHeight - 8 // Place higher on platform
-            
-            // Create image from SVG
-            const dropImg = new Image()
-            dropImg.onload = () => {
-              ctx.drawImage(dropImg, centerX, dropY, dropWidth, dropHeight)
-            }
-            dropImg.src = '/Drop.svg'
-          } else {
-            // Render fire
-            const centerX = platform.x + (platform.width - fireWidth) / 2
-            ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
-          }
+          // Render single centered fire for all platforms
+          const centerX = platform.x + (platform.width - fireWidth) / 2
+          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
         }
       }
     })
