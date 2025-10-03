@@ -486,7 +486,7 @@ export default function BaronWeb() {
     }
   }, [])
 
-  // Calculate fire probability based on score and elapsed time (increased by 50%)
+  // Calculate fire probability based on score and elapsed time (increased by 30%)
   const getFireProbability = useCallback((score: number, elapsedSec: number) => {
     const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v))
     // Baseline terms
@@ -496,8 +496,8 @@ export default function BaronWeb() {
 
     // Early grace: reduce fires up to score 50 (e.g., at 25 → ~50% of normal)
     const graceFactor = Math.max(0.5, Math.min(1, score / 50))
-    // Increase fire probability by 50% (was 30%)
-    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.5)
+    // Increase fire probability by 30%
+    return clamp((base + scoreTerm + timeTerm) * graceFactor * 1.3)
   }, [])
 
   // Load character images
@@ -514,7 +514,7 @@ export default function BaronWeb() {
     let loadedCount = 0
     const onLoad = () => {
       loadedCount++
-      if (loadedCount === 6) characterImageRef.current = [img1, img1_5, img2, img1, img1_5, img2]
+      if (loadedCount === 3) characterImageRef.current = [img1, img1_5, img2]
     }
     img1.onload = onLoad
     img1_5.onload = onLoad
@@ -535,7 +535,7 @@ export default function BaronWeb() {
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 6) fireStateImageRef.current = [fire1, fire2, fire3, fire1, fire2, fire3]
+      if (loaded === 3) fireStateImageRef.current = [fire1, fire2, fire3]
     }
     fire1.onload = onLoad
     fire2.onload = onLoad
@@ -1680,7 +1680,7 @@ export default function BaronWeb() {
     const showFireState = st.invulnerable && now - st.fireStateStartTime < 1800
 
     if (showFireState && fireStateImageRef.current) {
-      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 6)
+      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 6) // Doubled from 3 to 6 frames
       ctx.save()
       if (st.gravityCurrentDir < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -1693,7 +1693,7 @@ export default function BaronWeb() {
       ctx.restore()
     } else if (characterImageRef.current) {
       if (Date.now() - lastFrameTimeRef.current > 100) {
-        setCurrentFrame((prev) => (prev + 1) % 6)
+        setCurrentFrame((prev) => (prev + 1) % 6) // Doubled from 3 to 6 frames
         lastFrameTimeRef.current = Date.now()
       }
       ctx.save()
