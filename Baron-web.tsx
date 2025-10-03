@@ -671,10 +671,24 @@ export default function BaronWeb() {
     const COIN_H = 18
 
     platforms.forEach((platform) => {
-      // 60% chance to spawn a coin on each platform (except those with fire)
-      if (!platform.hasFire && gameRandom.next() < 0.6) {
+      // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
+      if (!platform.hasFire && gameRandom.next() < 0.78) {
         const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
         const coinY = platform.y - COIN_H - 8
+
+        coins.push({
+          x: Math.round(coinX),
+          y: Math.round(coinY),
+          width: COIN_W,
+          height: COIN_H,
+          collected: false,
+        })
+      }
+
+      // 30% chance to spawn a coin under the platform
+      if (gameRandom.next() < 0.3) {
+        const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
+        const coinY = platform.y + platform.height + 8 // Under the platform
 
         coins.push({
           x: Math.round(coinX),
