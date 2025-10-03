@@ -974,37 +974,48 @@ export default function BaronWeb() {
     rect1.y < rect2.y + rect2.height &&
     rect1.y + rect1.height > rect2.y
 
-  // Platform fire collision (30% overlap) - supports double fires for higher score
+  // Platform fire/drop collision (30% overlap) - fire gains life, drop loses life
   const checkFireCollision = (player: Player, platform: Platform) => {
-    if (!platform.hasFire) return false
+    if (!platform.hasFire) return { collision: false, type: null }
     const fireWidth = 35 // 30% bigger (27 * 1.3)
     const fireHeight = 42 // 30% bigger (32 * 1.3)
-    const fires: { x: number; y: number; width: number; height: number }[] = []
+    const dropWidth = fireWidth * 0.5
+    const dropHeight = fireHeight * 0.5
 
-    const centerX = platform.x + (platform.width - fireWidth) / 2
-    const y = platform.y - fireHeight - 1
-    fires.push({ x: centerX, y, width: fireWidth, height: fireHeight })
+    // Use platform position as seed for consistent fire/drop choice
+    const seed = Math.floor(platform.x / 100) + Math.floor(platform.y / 50)
+    const isDrop = seed % 2 === 0 // 50% chance based on position
 
-    // After score 150 and wide platform, add two side fires to increase difficulty
-    const currentScore = gameStateRef.current?.platformsPassed || 0
-    if (currentScore > 150 && platform.width > 150) {
-      const leftX = platform.x + 10
-      const rightX = platform.x + platform.width - fireWidth - 10
-      fires.push({ x: leftX, y, width: fireWidth, height: fireHeight })
-      fires.push({ x: rightX, y, width: fireWidth, height: fireHeight })
+    if (isDrop) {
+      // Check collision with drop (loses life)
+      const dropX = platform.x + (platform.width - dropWidth) / 2
+      const dropY = platform.y - dropHeight - 8
+
+      const overlapLeft = Math.max(player.x, dropX)
+      const overlapRight = Math.min(player.x + player.width, dropX + dropWidth)
+      const overlapTop = Math.max(player.y, dropY)
+      const overlapBottom = Math.min(player.y + player.height, dropY + dropHeight)
+      if (overlapLeft < overlapRight && overlapTop < overlapBottom) {
+        const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
+        const playerArea = player.width * player.height
+        if (overlapArea / playerArea >= 0.3) return { collision: true, type: 'drop' }
+      }
+    } else {
+      // Check collision with fire (gains life)
+      const fireX = platform.x + (platform.width - fireWidth) / 2
+      const fireY = platform.y - fireHeight - 1
+
+      const overlapLeft = Math.max(player.x, fireX)
+      const overlapRight = Math.min(player.x + player.width, fireX + fireWidth)
+      const overlapTop = Math.max(player.y, fireY)
+      const overlapBottom = Math.min(player.y + player.height, fireY + fireHeight)
+      if (overlapLeft < overlapRight && overlapTop < overlapBottom) {
+        const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
+        const playerArea = player.width * player.height
+        if (overlapArea / playerArea >= 0.3) return { collision: true, type: 'fire' }
+      }
     }
-
-    for (const fire of fires) {
-      const overlapLeft = Math.max(player.x, fire.x)
-      const overlapRight = Math.min(player.x + player.width, fire.x + fire.width)
-      const overlapTop = Math.max(player.y, fire.y)
-      const overlapBottom = Math.min(player.y + player.height, fire.y + fire.height)
-      if (overlapLeft >= overlapRight || overlapTop >= overlapBottom) continue
-      const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
-      const playerArea = player.width * player.height
-      if (overlapArea / playerArea >= 0.3) return true
-    }
-    return false
+    return { collision: false, type: null }
   }
 
   // Try to spawn a heart on a platform ahead of the player
@@ -1144,22 +1155,38 @@ export default function BaronWeb() {
     // Platform collisions and scoring
     player.onGround = false
     for (const platform of st.platforms) {
-      // Fire collision on platform
-      if (!st.invulnerable && checkFireCollision(player, platform)) {
-        playOuchSound()
-        const newLives = lives - 1
-        setLives(newLives)
-        if (newLives <= 0) {
-          // Save score and check if it's a new best
-          saveScoreToHistory(score)
-          setIsGameOver(true)
-          setIsPlaying(false)
-          playGameOverMusic()
-          return
-        } else {
-          st.invulnerable = true
-          st.invulnerableTime = Date.now() + 2000
-          st.fireStateStartTime = Date.now()
+      // Fire/drop collision on platform
+      if (!st.invulnerable) {
+        const collisionResult = checkFireCollision(player, platform)
+        if (collisionResult.collision) {
+          if (collisionResult.type === 'drop') {
+            // Drop collision - loses life
+            playOuchSound()
+            const newLives = lives - 1
+            setLives(newLives)
+            if (newLives <= 0) {
+              // Save score and check if it's a new best
+              saveScoreToHistory(score)
+              setIsGameOver(true)
+              setIsPlaying(false)
+              playGameOverMusic()
+              return
+            } else {
+              st.invulnerable = true
+              st.invulnerableTime = Date.now() + 2000
+              st.fireStateStartTime = Date.now()
+            }
+          } else if (collisionResult.type === 'fire') {
+            // Fire collision - gains life (max 3)
+            if (lives < 3) {
+              const newLives = lives + 1
+              setLives(newLives)
+              // Brief invulnerability to prevent multiple gains
+              st.invulnerable = true
+              st.invulnerableTime = Date.now() + 1000
+              st.fireStateStartTime = Date.now()
+            }
+          }
         }
       }
 
