@@ -158,7 +158,7 @@ export default function BaronWeb() {
   const [currentCoinFrame, setCurrentCoinFrame] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
-  const [showPlatformNumbers, setShowPlatformNumbers] = useState(false)
+  const [showPlatformNumbers, setShowPlatformNumbers] = useState(true)
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
   const [nextPlatformId, setNextPlatformId] = useState(1)
