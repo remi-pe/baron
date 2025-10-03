@@ -1613,11 +1613,11 @@ export default function BaronWeb() {
         if (showPlatformNumbers) {
           ctx.save()
           ctx.fillStyle = "#ff0000"
-          ctx.font = "bold 12px Arial"
+          ctx.font = "bold 20px Arial"
           ctx.textAlign = "center"
           ctx.textBaseline = "middle"
           const numberX = platform.x + platform.width / 2
-          const numberY = platform.y + platform.height / 2
+          const numberY = platform.y + platform.height + 15 // Further down
           ctx.fillText(index.toString(), numberX, numberY)
           ctx.restore()
         }
