@@ -115,10 +115,21 @@ interface GameState {
   levelBoundaries: LevelBoundary[]
 }
 
-function BrandHeader() {
+function BrandHeader({ showPlatformNumbers, setShowPlatformNumbers }: { showPlatformNumbers: boolean; setShowPlatformNumbers: (show: boolean) => void }) {
   return (
-    <div className="w-[390px] mb-3 flex justify-center">
+    <div className="w-[390px] mb-3 flex justify-center items-center gap-4">
       <img src="/simple-branding.svg" alt="Branding" className="h-12 w-auto" />
+      <button
+        onClick={() => setShowPlatformNumbers(!showPlatformNumbers)}
+        className={`px-3 py-1 text-xs rounded-full border-2 transition-colors ${
+          showPlatformNumbers 
+            ? 'bg-blue-500 text-white border-blue-500' 
+            : 'bg-white text-blue-500 border-blue-500 hover:bg-blue-50'
+        }`}
+        title="Toggle platform numbers (dev tool)"
+      >
+        #{showPlatformNumbers ? 'ON' : 'OFF'}
+      </button>
     </div>
   )
 }
@@ -144,6 +155,7 @@ export default function BaronWeb() {
   const [currentCoinFrame, setCurrentCoinFrame] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
+  const [showPlatformNumbers, setShowPlatformNumbers] = useState(false)
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
 
@@ -1592,10 +1604,23 @@ export default function BaronWeb() {
     })
 
     // Platforms and platform fires
-    platforms.forEach((platform) => {
+    platforms.forEach((platform, index) => {
       if (platform.x + platform.width > camera.x && platform.x < camera.x + canvas.width) {
         // Stylized platform (grass + fringe + dirt)
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
+
+        // Platform number (dev tool)
+        if (showPlatformNumbers) {
+          ctx.save()
+          ctx.fillStyle = "#ff0000"
+          ctx.font = "bold 12px Arial"
+          ctx.textAlign = "center"
+          ctx.textBaseline = "middle"
+          const numberX = platform.x + platform.width / 2
+          const numberY = platform.y + platform.height / 2
+          ctx.fillText(index.toString(), numberX, numberY)
+          ctx.restore()
+        }
 
         // Platform fire drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
@@ -1746,7 +1771,7 @@ export default function BaronWeb() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-2">
-      <BrandHeader />
+      <BrandHeader showPlatformNumbers={showPlatformNumbers} setShowPlatformNumbers={setShowPlatformNumbers} />
 
       {/* Top panel outside the game frame */}
       <div className="w-[390px]">
