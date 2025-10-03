@@ -1208,10 +1208,9 @@ export default function BaronWeb() {
             if (lives < 3) {
               const newLives = lives + 1
               setLives(newLives)
-              // Brief invulnerability to prevent multiple gains
+              // Brief invulnerability to prevent multiple gains (no fire state for beneficial fire)
               st.invulnerable = true
               st.invulnerableTime = Date.now() + 1000
-              st.fireStateStartTime = Date.now()
             }
           }
         }
