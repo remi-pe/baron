@@ -624,9 +624,13 @@ export default function BaronWeb() {
       const platformY = TOP_BOUND + zone * zoneHeight + yInZone + minSpacing / 2
 
       // Horizontal step keeps a bit of overlap and some randomness
+      // Make level 2 easier by reducing horizontal spacing
+      const currentLevel = Math.floor((gameStateRef.current?.platformsPassed || 0) / 20) + 1
+      const level2Bonus = currentLevel === 2 ? 20 : 0 // Reduce spacing by 20px in level 2
+      
       const overlapMin = 25 - 10 * p
       const jitter = -5 + gameRandom.next() * 10
-      const step = Math.max(40, width - overlapMin + jitter)
+      const step = Math.max(40, width - overlapMin + jitter - level2Bonus)
 
       newPlatforms.push({
         x: currentX,
