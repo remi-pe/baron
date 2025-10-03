@@ -1618,7 +1618,7 @@ export default function BaronWeb() {
           ctx.textBaseline = "middle"
           const numberX = platform.x + platform.width / 2
           const numberY = platform.y + platform.height + 15 // Further down
-          ctx.fillText(index.toString(), numberX, numberY)
+          ctx.fillText((index + 1).toString(), numberX, numberY)
           ctx.restore()
         }
 
