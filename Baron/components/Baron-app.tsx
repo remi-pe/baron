@@ -477,15 +477,23 @@ export default function BaronApp() {
       const frameToScaleX = [1, 0.5, 0.1, 0.5];
       const sx = frameToScaleX[(frame % 4 + 4) % 4];
       
-      // Special rendering for edge state (frame 2)
+      // Special rendering for edge state (frame 2) - Figma variant
       if (frame === 2) {
-        // Draw thin vertical bar for edge view
+        // Draw edge view with subtle 3D effect (darker right edge)
         const barWidth = Math.max(1, w * 0.05); // Very thin bar
-        ctx.fillStyle = '#ffd700';
-        ctx.strokeStyle = '#b8860b';
-        ctx.lineWidth = 1 as any;
+        const rightEdgeWidth = Math.max(0.5, barWidth * 0.3);
+        
+        // Main bar (golden-brown)
+        ctx.fillStyle = '#daa520';
         ctx.fillRect(-barWidth / 2, -h / 2, barWidth, h);
-        ctx.strokeRect(-barWidth / 2, -h / 2, barWidth, h);
+        
+        // Right edge (darker for 3D effect)
+        ctx.fillStyle = '#b8860b';
+        ctx.fillRect(barWidth / 2 - rightEdgeWidth, -h / 2, rightEdgeWidth, h);
+        
+        // Left highlight (lighter)
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(-barWidth / 2, -h / 2, Math.max(0.5, barWidth * 0.2), h);
       } else {
         // Normal coin rendering for other frames
         ctx.scale(sx, 1);
