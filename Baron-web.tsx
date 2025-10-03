@@ -864,6 +864,29 @@ export default function BaronWeb() {
     }
 
     const generatedPlatforms = generatePlatforms(800, 20, 6) // Start from ID 6
+    
+    // Ensure platform 6 (first generated) is reachable from platform 5
+    if (generatedPlatforms.length > 0 && platforms.length >= 5) {
+      const platform5 = platforms[4] // Platform 5 (index 4)
+      const platform6 = generatedPlatforms[0] // Platform 6 (first generated)
+      
+      // Ensure platform 6 is not too far vertically from platform 5
+      const maxVerticalGap = 100 // Maximum safe vertical distance
+      const verticalDistance = Math.abs(platform6.y - platform5.y)
+      
+      if (verticalDistance > maxVerticalGap) {
+        // Adjust platform 6 to be closer vertically to platform 5
+        const direction = platform6.y > platform5.y ? -1 : 1
+        platform6.y = platform5.y + direction * maxVerticalGap
+        
+        // Clamp to bounds
+        platform6.y = Math.max(TOP_BOUND + 32, Math.min(platform6.y, BOTTOM_BOUND - 32))
+      }
+      
+      // Add fire to platform 6
+      platform6.hasFire = true
+    }
+    
     platforms.push(...generatedPlatforms)
     
     // Update next platform ID after generating platforms
