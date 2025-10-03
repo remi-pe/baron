@@ -564,21 +564,21 @@ export default function BaronWeb() {
     cloudImg.onload = () => (cloudImageRef.current = cloudImg)
   }, [])
 
-  // Load platform fire images
+  // Load platform drop images
   useEffect(() => {
-    const fire1 = new Image()
-    const fire2 = new Image()
-    fire1.crossOrigin = "anonymous"
-    fire2.crossOrigin = "anonymous"
-    fire1.src = "/fire_1.svg"
-    fire2.src = "/fire_2.svg"
+    const drop1 = new Image()
+    const drop2 = new Image()
+    drop1.crossOrigin = "anonymous"
+    drop2.crossOrigin = "anonymous"
+    drop1.src = "/drop.svg"
+    drop2.src = "/drop.svg" // Use same image for both frames
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 2) fireImageRef.current = [fire1, fire2]
+      if (loaded === 2) fireImageRef.current = [drop1, drop2]
     }
-    fire1.onload = onLoad
-    fire2.onload = onLoad
+    drop1.onload = onLoad
+    drop2.onload = onLoad
   }, [])
 
   // Generate clouds
@@ -1658,20 +1658,20 @@ export default function BaronWeb() {
           ctx.restore()
         }
 
-        // Platform fire drawing
+        // Platform drop drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
           const currentTime = Date.now()
           if (currentTime - lastFireFrameTimeRef.current > 300) {
             setCurrentFireFrame((prev) => (prev === 0 ? 1 : 0))
             lastFireFrameTimeRef.current = currentTime
           }
-          const fireWidth = 35 // 30% bigger (27 * 1.3)
-          const fireHeight = 42 // 30% bigger (32 * 1.3)
-          const y = platform.y - fireHeight - 1
+          const dropWidth = 35 // 30% bigger (27 * 1.3)
+          const dropHeight = 42 // 30% bigger (32 * 1.3)
+          const y = platform.y - dropHeight - 1
 
-          // Render single centered fire for all platforms
-          const centerX = platform.x + (platform.width - fireWidth) / 2
-          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
+          // Render single centered drop for all platforms
+          const centerX = platform.x + (platform.width - dropWidth) / 2
+          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, dropWidth, dropHeight)
         }
       }
     })
