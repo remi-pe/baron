@@ -776,6 +776,11 @@ export default function BaronWeb() {
 
     const coins = generateCoinsForPlatforms(platforms)
 
+    // Add drop to platform 3 (index 2)
+    if (platforms.length >= 3) {
+      platforms[2].hasFire = true // Ensure platform 3 has fire/drop
+    }
+
     // Add extra coins to platform 4 (index 3)
     if (platforms.length >= 4) {
       const platform4 = platforms[3]
