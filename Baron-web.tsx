@@ -18,7 +18,7 @@ class SeededRandom {
 let gameRandom = new SeededRandom(12345) // Fixed seed for consistent game generation
 
 const CANVAS_W = 390
-const CANVAS_H = 468
+const CANVAS_H = 540
 const TOP_BOUND = 0
 const BOTTOM_BOUND = CANVAS_H
 const MAX_LIVES = 3
@@ -300,7 +300,7 @@ export default function BaronWeb() {
   const [currentCoinFrame, setCurrentCoinFrame] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
-  const [showPlatformNumbers, setShowPlatformNumbers] = useState(true)
+  const [showPlatformNumbers, setShowPlatformNumbers] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState({
     vortex: true,      // Gravity flip
     ouch: true,        // Hit by drop
@@ -314,7 +314,8 @@ export default function BaronWeb() {
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
   const [nextPlatformId, setNextPlatformId] = useState(1)
-  const [countdown, setCountdown] = useState<number | null>(null)
+  const [countdown, setCountdown] = useState<'READY' | 'GO' | null>(null)
+  const [frameCounter, setFrameCounter] = useState(0)
 
   // HiDPI canvas: increase backing store and scale context to avoid blur
   useEffect(() => {
@@ -792,7 +793,7 @@ export default function BaronWeb() {
       10: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
       11: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
       12: { hasFire: true, hasDrop: false, dropDirection: 'down' },      // flame (down)
-      13: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      13: { hasFire: true, hasDrop: false, dropDirection: 'down' },      // flame (down)
       14: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
       15: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
       16: { hasFire: true, hasDrop: false, dropDirection: 'up' },        // flame (up)
@@ -864,7 +865,7 @@ export default function BaronWeb() {
 
       newPlatforms.push({
         x: currentX,
-        y: Math.max(TOP_BOUND + 48, Math.min(platformY, BOTTOM_BOUND - platformHeight - 56)),
+        y: Math.max(TOP_BOUND + 64, Math.min(platformY, BOTTOM_BOUND - platformHeight - 64)),
         width,
         height: platformHeight,
         color: "#8B4513",
@@ -883,16 +884,16 @@ export default function BaronWeb() {
     for (let i = 1; i < newPlatforms.length; i++) {
       const current = newPlatforms[i]
       const previous = newPlatforms[i - 1]
-      const minVSpace = runnerHeight // Minimum vertical gap = runner height
+      const minVSpace = runnerHeight * 2 // Minimum vertical gap = 2x runner height (64px) - NEVER OVERRIDE
       const pHeight = 8
       const horizontalOverlap = !(current.x > previous.x + previous.width || previous.x > current.x + current.width)
       if (horizontalOverlap) {
         const verticalDistance = Math.abs(current.y - previous.y)
         if (verticalDistance < minVSpace) {
           if (current.y > previous.y) {
-            current.y = Math.min(previous.y + minVSpace, BOTTOM_BOUND - pHeight - 56)
+            current.y = Math.min(previous.y + minVSpace, BOTTOM_BOUND - pHeight - 64)
           } else {
-            current.y = Math.max(previous.y - minVSpace, TOP_BOUND + 48)
+            current.y = Math.max(previous.y - minVSpace, TOP_BOUND + 64)
           }
         }
       }
@@ -1255,8 +1256,8 @@ export default function BaronWeb() {
       // Vertical: move away from p12 by a bit, clamped to bounds
       const extraGapY = 50
       const platformHeight = 8
-      const minY = TOP_BOUND + 32
-      const maxY = BOTTOM_BOUND - 32
+      const minY = TOP_BOUND + 64
+      const maxY = BOTTOM_BOUND - 64
       const minMargin = 32 // keep some clearance from top/bottom
       const targetY = p12.y < (TOP_BOUND + BOTTOM_BOUND) / 2 ? p12.y + extraGapY : p12.y - extraGapY
       p13.y = Math.max(minY, Math.min(maxY, targetY))
@@ -1324,7 +1325,7 @@ export default function BaronWeb() {
     setIsNewBestScore(false)
     setIsGameOver(false)
     setIsAIMode(false) // Turn off AI mode for manual play
-    setCountdown(3) // Start countdown from 3
+    setCountdown('READY') // Start countdown: READY → GO
   }, [])
 
   const startAIPlay = useCallback(() => {
@@ -1338,7 +1339,7 @@ export default function BaronWeb() {
     setIsNewBestScore(false)
     setIsGameOver(false)
     setIsAIMode(true) // Turn on AI mode
-    setCountdown(3) // Start countdown from 3
+    setCountdown('READY') // Start countdown: READY → GO
   }, [])
 
   // Input: Space flips during play; Space starts again on Game Over
@@ -2187,18 +2188,6 @@ export default function BaronWeb() {
         // Stylized platform (grass + fringe + dirt)
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
-        // Platform number (dev tool) - always at bottom of screen
-        if (showPlatformNumbers && platform.id) {
-          ctx.save()
-          ctx.fillStyle = "#ff0000"
-          ctx.font = "bold 20px Arial"
-          ctx.textAlign = "center"
-          ctx.textBaseline = "middle"
-          const numberX = platform.x + platform.width / 2
-          const numberY = CANVAS_H - 20 // 20px from bottom of screen
-          ctx.fillText(platform.id.toString(), numberX, numberY)
-          ctx.restore()
-        }
 
         // Platform fire drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
@@ -2457,6 +2446,8 @@ export default function BaronWeb() {
     if (isPlaying && !isGameOver) {
       updateGame()
       render()
+      // Update frame counter every 2 frames for smooth platform number movement
+      setFrameCounter(prev => (prev + 1) % 2)
       animationFrameRef.current = requestAnimationFrame(gameLoop)
     }
   }, [isPlaying, isGameOver, updateGame, render])
@@ -2482,24 +2473,19 @@ export default function BaronWeb() {
     loadScoreHistory()
   }, [loadScoreHistory])
 
-  // Countdown logic
+  // Countdown logic: READY (500ms) → Start
   useEffect(() => {
     if (countdown === null) return
 
-    if (countdown === 0) {
-      // Start the game when countdown reaches 0
-      setCountdown(null)
-      initializeGame()
-      setIsPlaying(true)
-      return
+    if (countdown === 'READY') {
+      // Show READY for 500ms, then start game
+      const timer = setTimeout(() => {
+        setCountdown(null)
+        initializeGame()
+        setIsPlaying(true)
+      }, 500)
+      return () => clearTimeout(timer)
     }
-
-    // Countdown timer
-    const timer = setTimeout(() => {
-      setCountdown(countdown - 1)
-    }, 1000)
-
-    return () => clearTimeout(timer)
   }, [countdown, initializeGame])
 
   return (
@@ -2579,7 +2565,7 @@ export default function BaronWeb() {
                 className="text-6xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
                 style={{ fontFamily: "Rethink Sans, sans-serif" }}
               >
-                {countdown === 0 ? 'GO!' : countdown}
+                {countdown}
               </div>
             </div>
           </div>
@@ -2590,24 +2576,24 @@ export default function BaronWeb() {
             <div className="relative">
               {/* Main overlay panel */}
               <div
-                className="bg-white rounded-2xl p-6 text-center shadow-2xl mx-3 pt-6"
-                style={{ fontFamily: "Rethink Sans, sans-serif" }}
+                className="bg-white rounded-2xl p-8 text-center shadow-2xl mx-3 flex flex-col"
+                style={{ fontFamily: "Rethink Sans, sans-serif", minWidth: "320px" }}
               >
+                {/* Coal Jack Title */}
+                <h1
+                  className="text-2xl font-bold text-gray-800 mb-4 select-none"
+                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
+                >
+                  COAL JACK
+                </h1>
+
                 {/* Game Over text */}
                 <h2
-                  className="text-3xl font-bold text-red-600 mb-2 select-none"
+                  className="text-3xl font-bold text-red-600 mb-6 select-none"
                   style={{ fontFamily: "Rethink Sans, sans-serif" }}
                 >
                   GAME OVER
                 </h2>
-
-                {/* Score */}
-                <p
-                  className="text-xl text-gray-600 mb-6 select-none"
-                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                >
-                  Score: {score}
-                </p>
 
                 {/* New Best Score notification */}
                 {isNewBestScore && (
@@ -2621,48 +2607,67 @@ export default function BaronWeb() {
                   </div>
                 )}
 
-                {/* Start Again Button */}
+                {/* Scores grouped together */}
+                <div className="mb-8 flex-grow flex flex-col justify-center">
+                  <p
+                    className="text-xl text-gray-600 mb-2 select-none"
+                    style={{ fontFamily: "Rethink Sans, sans-serif" }}
+                  >
+                    Score: {score}
+                  </p>
+                  {getBestScore() > 0 && (
+                    <p className="text-base text-gray-500 select-none" style={{ fontFamily: "Rethink Sans, sans-serif" }}>
+                      Best Score: {getBestScore()}
+                    </p>
+                  )}
+                </div>
+
+                {/* Start Again Button - at bottom */}
                 <button
                   onClick={startAgain}
-                  className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl text-lg mb-3 transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+                  className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl text-lg transition-all duration-200 hover:scale-105 active:scale-95 select-none"
                   style={{ fontFamily: "Rethink Sans, sans-serif" }}
                 >
                   START AGAIN
                 </button>
-
-                {/* AI Play Button */}
-                <button
-                  onClick={startAIPlay}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-2xl text-lg mb-4 transition-all duration-200 hover:scale-105 active:scale-95 select-none"
-                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                >
-                  AI PLAY
-                </button>
-
-                {/* Best Score */}
-                {getBestScore() > 0 && (
-                  <p className="text-base text-gray-500 select-none" style={{ fontFamily: "Rethink Sans, sans-serif" }}>
-                    Best Score: {getBestScore()}
-                  </p>
-                )}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="mt-3 flex gap-2 justify-center">
-        <Button
-          onClick={() => {
-            if (gameStateRef.current && isPlaying && !isGameOver) doFlip()
-          }}
-          disabled={!isPlaying || isGameOver}
-          className="select-none w-[390px] h-14 text-lg font-medium tracking-widest rounded-xl shadow-lg bg-[#4338ca] hover:bg-[#4338ca] active:bg-[#4338ca] text-white border-0"
-          style={{ fontFamily: "Rethink Sans, sans-serif" }}
-        >
-          flip
-        </Button>
-      </div>
+      {/* Platform Numbers Display - positioned below each platform */}
+      {showPlatformNumbers && gameStateRef.current && (
+        <div className="relative w-[390px] h-[40px] mt-5">
+          {gameStateRef.current.platforms
+            .filter(p => {
+              const camera = gameStateRef.current!.camera
+              return p.x + p.width > camera.x && p.x < camera.x + CANVAS_W
+            })
+            .map(platform => {
+              const camera = gameStateRef.current!.camera
+              const screenX = platform.x + platform.width / 2 - camera.x
+              // Only show if reasonably visible on screen
+              if (screenX < -50 || screenX > CANVAS_W + 50) return null
+              return (
+                <span
+                  key={platform.id}
+                  className="absolute text-black font-bold text-lg px-2 py-1 bg-gray-200 rounded transition-none"
+                  style={{ 
+                    fontFamily: "Rethink Sans, sans-serif",
+                    transform: `translate3d(${screenX}px, 0, 0) translateX(-50%)`,
+                    willChange: 'transform',
+                    top: '0px'
+                  }}
+                >
+                  {platform.id}
+                </span>
+              )
+            })
+            .filter(Boolean)}
+        </div>
+      )}
+
     </div>
   )
 }
