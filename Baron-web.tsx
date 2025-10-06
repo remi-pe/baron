@@ -320,7 +320,9 @@ export default function BaronWeb() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1))
+    // Cap DPR at 1.5 for mobile performance (3x is too intensive)
+    const rawDpr = window.devicePixelRatio || 1
+    const dpr = Math.min(1.5, Math.max(1, rawDpr))
     // Set backing resolution
     canvas.width = CANVAS_W * dpr
     canvas.height = CANVAS_H * dpr
