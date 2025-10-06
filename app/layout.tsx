@@ -6,7 +6,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Coal Jack',
-  description: 'Gravity-flipping platformer game',
+  description: 'Stay warm or die.',
   generator: 'v0.app',
   icons: {
     icon: '/favicon.svg',
