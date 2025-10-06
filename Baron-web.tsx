@@ -143,105 +143,136 @@ function BrandHeader({
   }
   setSoundEnabled: (enabled: any) => void
 }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
   const toggleSound = (key: keyof typeof soundEnabled) => {
     setSoundEnabled({ ...soundEnabled, [key]: !soundEnabled[key] })
   }
 
   return (
-    <div className="w-full max-w-[800px] mb-3">
-      {/* Platform Numbers Toggle */}
-      <div className="flex justify-center mb-2">
+    <div className="w-full max-w-[800px] mb-3 relative z-[100]">
+      {/* Dev Tools Dropdown Button */}
+      <div className="flex justify-center">
         <button
-          onClick={() => setShowPlatformNumbers(!showPlatformNumbers)}
-          className={`px-3 py-1 text-xs rounded-full border-2 transition-colors ${
-            showPlatformNumbers 
-              ? 'bg-blue-500 text-white border-blue-500' 
-              : 'bg-white text-blue-500 border-blue-500 hover:bg-blue-50'
-          }`}
-          title="Toggle platform numbers"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 relative z-[100]"
         >
-          # {showPlatformNumbers ? 'ON' : 'OFF'}
+          🛠️ Dev Tools
+          <svg 
+            className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
       </div>
 
-      {/* Sound Toggles */}
-      <div className="grid grid-cols-4 gap-2 text-[10px]">
-        <button
-          onClick={() => toggleSound('vortex')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.vortex ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Gravity flip sound"
-        >
-          🌀 Flip
-        </button>
-        <button
-          onClick={() => toggleSound('land')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.land ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Landing sound"
-        >
-          📍 Land
-        </button>
-        <button
-          onClick={() => toggleSound('success')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.success ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Flame collect sound"
-        >
-          🔥 Flame
-        </button>
-        <button
-          onClick={() => toggleSound('ouch')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.ouch ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Drop hit sound"
-        >
-          💧 Drop
-        </button>
-        <button
-          onClick={() => toggleSound('coinCollect')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.coinCollect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Coin collect sound"
-        >
-          🪙 Coin
-        </button>
-        <button
-          onClick={() => toggleSound('heartCollect')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.heartCollect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Heart collect sound"
-        >
-          ❤️ Heart
-        </button>
-        <button
-          onClick={() => toggleSound('bgMusic')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.bgMusic ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Background music"
-        >
-          🎵 Music
-        </button>
-        <button
-          onClick={() => toggleSound('gameOver')}
-          className={`px-2 py-1 rounded border transition-colors ${
-            soundEnabled.gameOver ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}
-          title="Game over sound"
-        >
-          💀 Over
-        </button>
-      </div>
+      {/* Dropdown Content */}
+      {isDropdownOpen && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-xl border-2 border-gray-200 p-4 z-[100] w-[400px]">
+          {/* Platform Numbers Toggle */}
+          <div className="mb-4 pb-4 border-b border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Platform Numbers</h3>
+            <button
+              onClick={() => setShowPlatformNumbers(!showPlatformNumbers)}
+              className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-colors ${
+                showPlatformNumbers 
+                  ? 'bg-blue-500 text-white border-blue-500' 
+                  : 'bg-white text-blue-500 border-blue-500 hover:bg-blue-50'
+              }`}
+              title="Toggle platform numbers"
+            >
+              # {showPlatformNumbers ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* Sound Toggles */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Sound Controls</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                onClick={() => toggleSound('vortex')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.vortex ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Gravity flip sound"
+              >
+                🌀 Flip
+              </button>
+              <button
+                onClick={() => toggleSound('land')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.land ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Landing sound"
+              >
+                📍 Land
+              </button>
+              <button
+                onClick={() => toggleSound('success')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.success ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Flame collect sound"
+              >
+                🔥 Flame
+              </button>
+              <button
+                onClick={() => toggleSound('ouch')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.ouch ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Drop hit sound"
+              >
+                💧 Drop
+              </button>
+              <button
+                onClick={() => toggleSound('coinCollect')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.coinCollect ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Coin collect sound"
+              >
+                🪙 Coin
+              </button>
+              <button
+                onClick={() => toggleSound('heartCollect')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.heartCollect ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Heart collect sound"
+              >
+                ❤️ Heart
+              </button>
+              <button
+                onClick={() => toggleSound('bgMusic')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.bgMusic ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Background music"
+              >
+                🎵 Music
+              </button>
+              <button
+                onClick={() => toggleSound('gameOver')}
+                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
+                  soundEnabled.gameOver ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Game over sound"
+              >
+                💀 Over
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+
 
 export default function BaronWeb() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
