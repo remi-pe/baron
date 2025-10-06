@@ -31,6 +31,7 @@ interface Player {
   velocityX: number
   velocityY: number
   onGround: boolean
+  wasOnGround: boolean
   color: string
 }
 
@@ -43,6 +44,7 @@ interface Platform {
   passed?: boolean
   hasFire?: boolean
   hasDrop?: boolean
+  dropDirection?: 'up' | 'down'
   id?: number // Platform number for debugging
 }
 
@@ -104,6 +106,10 @@ interface GameState {
   invulnerable: boolean
   invulnerableTime: number
   fireStateStartTime: number
+  dropHitCount: number
+  dropHitStartTime: number
+  isDead: boolean
+  deadStartTime: number
   level: number
   checkpointFlag?: { x: number; y: number; width: number; height: number; passed: boolean }
 
@@ -117,21 +123,122 @@ interface GameState {
   levelBoundaries: LevelBoundary[]
 }
 
-function BrandHeader({ showPlatformNumbers, setShowPlatformNumbers }: { showPlatformNumbers: boolean; setShowPlatformNumbers: (show: boolean) => void }) {
+function BrandHeader({ 
+  showPlatformNumbers, 
+  setShowPlatformNumbers,
+  soundEnabled,
+  setSoundEnabled
+}: { 
+  showPlatformNumbers: boolean
+  setShowPlatformNumbers: (show: boolean) => void
+  soundEnabled: {
+    vortex: boolean
+    ouch: boolean
+    heartCollect: boolean
+    coinCollect: boolean
+    success: boolean
+    land: boolean
+    bgMusic: boolean
+    gameOver: boolean
+  }
+  setSoundEnabled: (enabled: any) => void
+}) {
+  const toggleSound = (key: keyof typeof soundEnabled) => {
+    setSoundEnabled({ ...soundEnabled, [key]: !soundEnabled[key] })
+  }
+
   return (
-    <div className="w-[390px] mb-3 flex justify-center items-center gap-4">
-      <img src="/simple-branding.svg" alt="Branding" className="h-12 w-auto" />
-      <button
-        onClick={() => setShowPlatformNumbers(!showPlatformNumbers)}
-        className={`px-3 py-1 text-xs rounded-full border-2 transition-colors ${
-          showPlatformNumbers 
-            ? 'bg-blue-500 text-white border-blue-500' 
-            : 'bg-white text-blue-500 border-blue-500 hover:bg-blue-50'
-        }`}
-        title="Toggle platform numbers (dev tool)"
-      >
-        #{showPlatformNumbers ? 'ON' : 'OFF'}
-      </button>
+    <div className="w-full max-w-[800px] mb-3">
+      {/* Platform Numbers Toggle */}
+      <div className="flex justify-center mb-2">
+        <button
+          onClick={() => setShowPlatformNumbers(!showPlatformNumbers)}
+          className={`px-3 py-1 text-xs rounded-full border-2 transition-colors ${
+            showPlatformNumbers 
+              ? 'bg-blue-500 text-white border-blue-500' 
+              : 'bg-white text-blue-500 border-blue-500 hover:bg-blue-50'
+          }`}
+          title="Toggle platform numbers"
+        >
+          # {showPlatformNumbers ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
+      {/* Sound Toggles */}
+      <div className="grid grid-cols-4 gap-2 text-[10px]">
+        <button
+          onClick={() => toggleSound('vortex')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.vortex ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Gravity flip sound"
+        >
+          🌀 Flip
+        </button>
+        <button
+          onClick={() => toggleSound('land')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.land ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Landing sound"
+        >
+          📍 Land
+        </button>
+        <button
+          onClick={() => toggleSound('success')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.success ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Flame collect sound"
+        >
+          🔥 Flame
+        </button>
+        <button
+          onClick={() => toggleSound('ouch')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.ouch ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Drop hit sound"
+        >
+          💧 Drop
+        </button>
+        <button
+          onClick={() => toggleSound('coinCollect')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.coinCollect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Coin collect sound"
+        >
+          🪙 Coin
+        </button>
+        <button
+          onClick={() => toggleSound('heartCollect')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.heartCollect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Heart collect sound"
+        >
+          ❤️ Heart
+        </button>
+        <button
+          onClick={() => toggleSound('bgMusic')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.bgMusic ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Background music"
+        >
+          🎵 Music
+        </button>
+        <button
+          onClick={() => toggleSound('gameOver')}
+          className={`px-2 py-1 rounded border transition-colors ${
+            soundEnabled.gameOver ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+          title="Game over sound"
+        >
+          💀 Over
+        </button>
+      </div>
     </div>
   )
 }
@@ -143,25 +250,40 @@ export default function BaronWeb() {
   const animationFrameRef = useRef<number>()
   const characterImageRef = useRef<HTMLImageElement[] | null>(null)
   const fireStateImageRef = useRef<HTMLImageElement[] | null>(null)
+  const deadImageRef = useRef<HTMLImageElement | null>(null)
   const cloudImageRef = useRef<HTMLImageElement>()
   const fireImageRef = useRef<HTMLImageElement[]>()
   const dropImageRef = useRef<HTMLImageElement>()
+  const coinImageRef = useRef<HTMLImageElement[] | null>(null)
   const lastFrameTimeRef = useRef(0)
   const lastFireFrameTimeRef = useRef(0)
   const lastCoinFrameTimeRef = useRef(0)
+  const gameOverAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const [score, setScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isGameOver, setIsGameOver] = useState(false)
+  const [isAIMode, setIsAIMode] = useState(false)
   const [currentFrame, setCurrentFrame] = useState(0)
   const [currentFireFrame, setCurrentFireFrame] = useState(0)
   const [currentCoinFrame, setCurrentCoinFrame] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
   const [showPlatformNumbers, setShowPlatformNumbers] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState({
+    vortex: true,      // Gravity flip
+    ouch: true,        // Hit by drop
+    heartCollect: true, // Collect heart
+    coinCollect: true,  // Collect coin
+    success: true,      // Touch flame
+    land: true,         // Land on platform
+    bgMusic: true,      // Background music
+    gameOver: true      // Game over music
+  })
   const [scoreHistory, setScoreHistory] = useState<number[]>([])
   const [isNewBestScore, setIsNewBestScore] = useState(false)
   const [nextPlatformId, setNextPlatformId] = useState(1)
+  const [countdown, setCountdown] = useState<number | null>(null)
 
   // HiDPI canvas: increase backing store and scale context to avoid blur
   useEffect(() => {
@@ -256,6 +378,7 @@ export default function BaronWeb() {
 
   // Create audio context and generate vortex sound
   const playVortexSound = useCallback(() => {
+    if (!soundEnabled.vortex) return
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator1 = audioContext.createOscillator()
@@ -312,9 +435,10 @@ export default function BaronWeb() {
     } catch {
       // no-op
     }
-  }, [])
+  }, [soundEnabled])
 
   const playOuchSound = useCallback(() => {
+    if (!soundEnabled.ouch) return
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const now = audioContext.currentTime
@@ -372,6 +496,7 @@ export default function BaronWeb() {
   }, [])
 
   const playHeartCollectSound = useCallback(() => {
+    if (!soundEnabled.heartCollect) return
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       const ac = new AudioCtx()
@@ -406,101 +531,71 @@ export default function BaronWeb() {
     } catch {
       // no-op
     }
-  }, [])
+  }, [soundEnabled])
 
   const playCoinCollectSound = useCallback(() => {
+    if (!soundEnabled.coinCollect) return
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-      const ac = new AudioCtx()
-      const now = ac.currentTime
+      const audio = new Audio('/coin-collect-sound.wav')
+      audio.volume = 0.4 // Adjust volume as needed
+      audio.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
+  }, [soundEnabled])
 
-      const master = ac.createGain()
-      master.gain.setValueAtTime(0.0001, now)
-      master.gain.exponentialRampToValueAtTime(0.3, now + 0.01)
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.3)
-      master.connect(ac.destination)
+  const playSuccessSound = useCallback(() => {
+    if (!soundEnabled.success) return
+    try {
+      const audio = new Audio('/flame-touch-sound.mp3')
+      audio.volume = 0.5 // Adjust volume as needed
+      audio.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
+  }, [soundEnabled])
 
-      // Quick ascending ding: C6 -> E6
-      const notes = [
-        { f: 1046.5, t: 0.0, d: 0.15 }, // C6
-        { f: 1318.5, t: 0.05, d: 0.2 }, // E6
-      ]
-
-      notes.forEach(({ f, t, d }) => {
-        const osc = ac.createOscillator()
-        const g = ac.createGain()
-        osc.type = "sine"
-        osc.frequency.setValueAtTime(f, now + t)
-        g.gain.setValueAtTime(0.0001, now + t)
-        g.gain.exponentialRampToValueAtTime(0.25, now + t + 0.01)
-        g.gain.exponentialRampToValueAtTime(0.0001, now + t + d)
-        osc.connect(g)
-        g.connect(master)
-        osc.start(now + t)
-        osc.stop(now + t + d + 0.02)
+  const playLandSound = useCallback(() => {
+    if (!soundEnabled.land) return
+    try {
+      const audio = new Audio('/land-sound.wav')
+      audio.volume = 0.3 // Adjust volume
+      audio.play().catch(() => {
+        // no-op (autoplay restrictions)
       })
     } catch {
       // no-op
     }
-  }, [])
+  }, [soundEnabled])
 
   const playGameOverMusic = useCallback(() => {
+    if (!soundEnabled.gameOver) return
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-      const ac = new AudioCtx()
-      const now = ac.currentTime
-
-      const master = ac.createGain()
-      master.gain.setValueAtTime(0.0001, now)
-      master.gain.exponentialRampToValueAtTime(0.25, now + 0.02)
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 1.4)
-      master.connect(ac.destination)
-
-      // Simple descending jingle
-      const notes = [
-        { f: 523.25, t: 0.0, d: 0.25 }, // C5
-        { f: 466.16, t: 0.25, d: 0.25 }, // A#4
-        { f: 392.0, t: 0.5, d: 0.35 }, // G4
-        { f: 349.23, t: 0.9, d: 0.5 }, // F4
-      ]
-
-      notes.forEach(({ f, t, d }) => {
-        const osc = ac.createOscillator()
-        const g = ac.createGain()
-        osc.type = "square"
-        osc.frequency.setValueAtTime(f, now + t)
-        g.gain.setValueAtTime(0.0001, now + t)
-        g.gain.exponentialRampToValueAtTime(0.2, now + t + 0.02)
-        g.gain.exponentialRampToValueAtTime(0.0001, now + t + d)
-        osc.connect(g)
-        g.connect(master)
-        osc.start(now + t)
-        osc.stop(now + t + d + 0.05)
-      })
-
-      // Soft noise tail
-      const noiseBuffer = ac.createBuffer(1, ac.sampleRate * 0.3, ac.sampleRate)
-      const channel = noiseBuffer.getChannelData(0)
-      for (let i = 0; i < channel.length; i++) channel[i] = Math.random() * 2 - 1
-      const noise = ac.createBufferSource()
-      noise.buffer = noiseBuffer
-      const lp = ac.createBiquadFilter()
-      lp.type = "lowpass"
-      lp.frequency.setValueAtTime(800, now)
-      lp.frequency.exponentialRampToValueAtTime(220, now + 0.6)
-      const ng = ac.createGain()
-      ng.gain.setValueAtTime(0.0001, now)
-      ng.gain.exponentialRampToValueAtTime(0.08, now + 0.05)
-      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.7)
-      noise.connect(lp)
-      lp.connect(ng)
-      ng.connect(master)
-      noise.start(now)
-      noise.stop(now + 0.7)
+      // Stop any existing game over audio
+      if (gameOverAudioRef.current) {
+        gameOverAudioRef.current.pause()
+        gameOverAudioRef.current.currentTime = 0
+      }
+      
+      const audio = new Audio('/game-over-sound.wav')
+      audio.volume = 0.5 // Adjust volume as needed
+      gameOverAudioRef.current = audio
+      audio.play().catch(() => { /* no-op */ })
     } catch {
       // no-op
     }
-  }, [])
+  }, [soundEnabled])
+
+  const playLevelUpSound = useCallback(() => {
+    if (!soundEnabled.bgMusic) return
+    try {
+      const audio = new Audio('/level-up-sound.wav')
+      audio.volume = 0.6 // Adjust volume as needed
+      audio.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
+  }, [soundEnabled])
 
   // Calculate fire probability based on score and elapsed time (increased by 30%)
   const getFireProbability = useCallback((score: number, elapsedSec: number) => {
@@ -566,6 +661,19 @@ export default function BaronWeb() {
     cloudImg.onload = () => (cloudImageRef.current = cloudImg)
   }, [])
 
+  // Load dead image
+  useEffect(() => {
+    const deadImg = new Image()
+    deadImg.crossOrigin = "anonymous"
+    deadImg.src = "/DEAD.svg"
+    deadImg.onload = () => {
+      deadImageRef.current = deadImg
+    }
+    deadImg.onerror = (error) => {
+      console.error("FAILED TO LOAD DEAD IMAGE:", error)
+    }
+  }, [])
+
   // Load platform fire images
   useEffect(() => {
     const fire1 = new Image()
@@ -586,11 +694,35 @@ export default function BaronWeb() {
   // Load drop image
   useEffect(() => {
     const drop = new Image()
-    drop.crossOrigin = "anonymous"
-    drop.src = "https://www.dropbox.com/scl/fi/zvz8azjp0cwnjuhfd299x/Drop.svg?rlkey=fm2gcoxjeg3y8g0cn11vjksfb&dl=1"
+    drop.src = "/Drop.svg"
     drop.onload = () => {
       dropImageRef.current = drop
     }
+  }, [])
+
+  // Load coin images
+  useEffect(() => {
+    const coin1 = new Image()
+    const coin2 = new Image()
+    const coin3 = new Image()
+    const coin4 = new Image()
+    coin1.crossOrigin = "anonymous"
+    coin2.crossOrigin = "anonymous"
+    coin3.crossOrigin = "anonymous"
+    coin4.crossOrigin = "anonymous"
+    coin1.src = "/COIN-1.svg"
+    coin2.src = "/COIN-2.svg"
+    coin3.src = "/COIN-3.svg"
+    coin4.src = "/COIN-4.svg"
+    let loaded = 0
+    const onLoad = () => {
+      loaded++
+      if (loaded === 4) coinImageRef.current = [coin1, coin2, coin3, coin4]
+    }
+    coin1.onload = onLoad
+    coin2.onload = onLoad
+    coin3.onload = onLoad
+    coin4.onload = onLoad
   }, [])
 
   // Generate clouds
@@ -610,6 +742,38 @@ export default function BaronWeb() {
       })
     }
     return newClouds
+  }
+
+  // Fixed item placement pattern for platforms 1-25
+  const getPlatformItems = (platformId: number) => {
+    const itemPattern: { [key: number]: { hasFire: boolean; hasDrop: boolean; dropDirection: 'up' | 'down' } } = {
+      1: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
+      2: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
+      3: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
+      4: { hasFire: false, hasDrop: true, dropDirection: 'down' },       // drop (down)
+      5: { hasFire: false, hasDrop: true, dropDirection: 'up' },         // drop (up)
+      6: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
+      7: { hasFire: true, hasDrop: false, dropDirection: 'down' },       // flame (down)
+      8: { hasFire: false, hasDrop: true, dropDirection: 'up' },         // drop (up)
+      9: { hasFire: false, hasDrop: true, dropDirection: 'down' },       // drop (down)
+      10: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      11: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
+      12: { hasFire: true, hasDrop: false, dropDirection: 'down' },      // flame (down)
+      13: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      14: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
+      15: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      16: { hasFire: true, hasDrop: false, dropDirection: 'up' },        // flame (up)
+      17: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
+      18: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      19: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
+      20: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
+      21: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
+      22: { hasFire: true, hasDrop: false, dropDirection: 'up' },        // flame (up)
+      23: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+      24: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
+      25: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
+    }
+    return itemPattern[platformId] || { hasFire: false, hasDrop: false, dropDirection: 'down' }
   }
 
   // Generate platforms (dynamic difficulty)
@@ -654,20 +818,28 @@ export default function BaronWeb() {
       const currentLevel = Math.floor((gameStateRef.current?.platformsPassed || 0) / 20) + 1
       const level2Bonus = currentLevel === 2 ? 20 : 0 // Reduce spacing by 20px in level 2
       
+      // Special case: make platforms 25 and 26 closer together
+      const platformId = startId + i
+      const platform25_26Bonus = (platformId === 25 || platformId === 26) ? 30 : 0 // Reduce spacing by 30px for platforms 25 and 26
+      
       const overlapMin = 25 - 10 * p
       const jitter = -5 + gameRandom.next() * 10
-      const step = Math.max(40, width - overlapMin + jitter - level2Bonus)
+      const step = Math.max(40, width - overlapMin + jitter - level2Bonus - platform25_26Bonus)
+
+      // Get fixed item placement for this platform
+      const platformItems = getPlatformItems(platformId)
 
       newPlatforms.push({
         x: currentX,
-        y: Math.max(TOP_BOUND + minSpacing / 2, Math.min(platformY, BOTTOM_BOUND - platformHeight - minSpacing / 2)),
+        y: Math.max(TOP_BOUND + 48, Math.min(platformY, BOTTOM_BOUND - platformHeight - 56)),
         width,
         height: platformHeight,
         color: "#8B4513",
         passed: false,
-        hasFire: gameRandom.next() < getFireProbability(currentScore, elapsedSec),
-        hasDrop: gameRandom.next() < 0.3, // 30% chance for drop
-        id: startId + i, // Assign unique platform ID
+        hasFire: platformItems.hasFire,
+        hasDrop: platformItems.hasDrop,
+        dropDirection: platformItems.dropDirection,
+        id: platformId, // Assign unique platform ID
       })
 
       currentX += step
@@ -685,9 +857,9 @@ export default function BaronWeb() {
         const verticalDistance = Math.abs(current.y - previous.y)
         if (verticalDistance < minVSpace) {
           if (current.y > previous.y) {
-            current.y = Math.min(previous.y + minVSpace, BOTTOM_BOUND - pHeight - minVSpace / 2)
+            current.y = Math.min(previous.y + minVSpace, BOTTOM_BOUND - pHeight - 56)
           } else {
-            current.y = Math.max(previous.y - minVSpace, TOP_BOUND + minVSpace / 2)
+            current.y = Math.max(previous.y - minVSpace, TOP_BOUND + 48)
           }
         }
       }
@@ -696,39 +868,125 @@ export default function BaronWeb() {
     return newPlatforms
   }
 
-  // Generate coins on platforms
+  // Check if coin overlaps with existing coins, flames, or drops
+  const checkCoinCollision = (newCoin: Coin, existingCoins: Coin[], platform: Platform) => {
+    // Check collision with existing coins
+    for (const existingCoin of existingCoins) {
+      if (newCoin.x < existingCoin.x + existingCoin.width &&
+          newCoin.x + newCoin.width > existingCoin.x &&
+          newCoin.y < existingCoin.y + existingCoin.height &&
+          newCoin.y + newCoin.height > existingCoin.y) {
+        return true // Collision detected
+      }
+    }
+
+    // Check collision with flame (if platform has fire)
+    if (platform.hasFire) {
+      const fireWidth = 35
+      const fireHeight = 42
+      const centerX = platform.x + (platform.width - fireWidth) / 2
+      let fireY
+      if (platform.dropDirection === 'up') {
+        fireY = platform.y - fireHeight - 1
+      } else {
+        fireY = platform.y + platform.height + 1
+      }
+
+      if (newCoin.x < centerX + fireWidth &&
+          newCoin.x + newCoin.width > centerX &&
+          newCoin.y < fireY + fireHeight &&
+          newCoin.y + newCoin.height > fireY) {
+        return true // Collision with flame
+      }
+    }
+
+    // Check collision with drop (if platform has drop)
+    if (platform.hasDrop) {
+      const dropWidth = 42
+      const dropHeight = 42
+      let dropX, dropY
+      if (platform.dropDirection === 'up') {
+        dropY = platform.y - dropHeight - 1
+        dropX = platform.x + platform.width - dropWidth - 5
+      } else {
+        dropY = platform.y + platform.height + 1
+        dropX = platform.x + platform.width - dropWidth - 5
+      }
+
+      if (newCoin.x < dropX + dropWidth &&
+          newCoin.x + newCoin.width > dropX &&
+          newCoin.y < dropY + dropHeight &&
+          newCoin.y + newCoin.height > dropY) {
+        return true // Collision with drop
+      }
+    }
+
+    return false // No collision
+  }
+
+  // Generate coins on platforms with collision avoidance
   const generateCoinsForPlatforms = (platforms: Platform[]) => {
     const coins: Coin[] = []
-    const COIN_W = 18
-    const COIN_H = 18
+    const COIN_W = 22
+    const COIN_H = 22
 
     platforms.forEach((platform) => {
       // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
       if (!platform.hasFire && gameRandom.next() < 0.78) {
-        const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
-        const coinY = platform.y - COIN_H - 8
+        let attempts = 0
+        let coinPlaced = false
+        
+        // Try multiple positions to avoid collisions
+        while (attempts < 10 && !coinPlaced) {
+          const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.6)
+          const coinY = platform.y - COIN_H - 8
 
-        coins.push({
-          x: Math.round(coinX),
-          y: Math.round(coinY),
-          width: COIN_W,
-          height: COIN_H,
-          collected: false,
-        })
+          // Ensure coin stays within platform bounds
+          const finalX = Math.max(platform.x + 5, Math.min(coinX, platform.x + platform.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          if (!checkCoinCollision(newCoin, coins, platform)) {
+            coins.push(newCoin)
+            coinPlaced = true
+          }
+          attempts++
+        }
       }
 
       // 30% chance to spawn a coin under the platform
       if (gameRandom.next() < 0.3) {
-        const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.4)
-        const coinY = platform.y + platform.height + 8 // Under the platform
+        let attempts = 0
+        let coinPlaced = false
+        
+        // Try multiple positions to avoid collisions
+        while (attempts < 10 && !coinPlaced) {
+          const coinX = platform.x + platform.width / 2 - COIN_W / 2 + (gameRandom.next() - 0.5) * (platform.width * 0.6)
+          const coinY = platform.y + platform.height + 8 // Under the platform
 
-        coins.push({
-          x: Math.round(coinX),
-          y: Math.round(coinY),
-          width: COIN_W,
-          height: COIN_H,
-          collected: false,
-        })
+          // Ensure coin stays within platform bounds
+          const finalX = Math.max(platform.x + 5, Math.min(coinX, platform.x + platform.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          if (!checkCoinCollision(newCoin, coins, platform)) {
+            coins.push(newCoin)
+            coinPlaced = true
+          }
+          attempts++
+        }
       }
     })
 
@@ -737,14 +995,15 @@ export default function BaronWeb() {
 
   // Flip helper (instant snap with natural curves)
   const doFlip = useCallback(() => {
-    if (!gameStateRef.current || isGameOver || !isPlaying) return
+    if (!gameStateRef.current || isGameOver || !isPlaying || isAIMode) return // Disable manual flip in AI mode
     const st = gameStateRef.current
 
-    // Instant gravity direction flip
-    st.gravityCurrentDir = -st.gravityCurrentDir // ±1 to ∓1
-
-    playVortexSound()
-  }, [isGameOver, isPlaying, playVortexSound])
+    // Instant gravity direction flip (disabled when dead)
+    if (!st.isDead) {
+      st.gravityCurrentDir = -st.gravityCurrentDir // ±1 to ∓1
+      playVortexSound()
+    }
+  }, [isGameOver, isPlaying, isAIMode, playVortexSound])
 
   // Initialize
   const initializeGame = useCallback(() => {
@@ -762,8 +1021,15 @@ export default function BaronWeb() {
     const initialScore = 0
     const initialElapsedSec = 0
 
+    // Get fixed item placement for initial platforms
+    const platform1Items = getPlatformItems(1)
+    const platform2Items = getPlatformItems(2)
+    const platform3Items = getPlatformItems(3)
+    const platform4Items = getPlatformItems(4)
+    const platform5Items = getPlatformItems(5)
+
     const platforms: Platform[] = [
-      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, id: 1 },
+      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
       {
         x: 170,
         y: 100,
@@ -771,8 +1037,9 @@ export default function BaronWeb() {
         height: 8,
         color: "#8B4513",
         passed: false,
-        hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
-        hasDrop: gameRandom.next() < 0.3,
+        hasFire: platform2Items.hasFire,
+        hasDrop: platform2Items.hasDrop,
+        dropDirection: platform2Items.dropDirection,
         id: 2,
       },
       {
@@ -782,8 +1049,9 @@ export default function BaronWeb() {
         height: 8,
         color: "#8B4513",
         passed: false,
-        hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
-        hasDrop: gameRandom.next() < 0.3,
+        hasFire: platform3Items.hasFire,
+        hasDrop: platform3Items.hasDrop,
+        dropDirection: platform3Items.dropDirection,
         id: 3,
       },
       {
@@ -793,8 +1061,9 @@ export default function BaronWeb() {
         height: 8,
         color: "#8B4513",
         passed: false,
-        hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
-        hasDrop: gameRandom.next() < 0.3,
+        hasFire: platform4Items.hasFire,
+        hasDrop: platform4Items.hasDrop,
+        dropDirection: platform4Items.dropDirection,
         id: 4,
       },
       {
@@ -804,8 +1073,9 @@ export default function BaronWeb() {
         height: 8,
         color: "#8B4513",
         passed: false,
-        hasFire: gameRandom.next() < getFireProbability(initialScore, initialElapsedSec),
-        hasDrop: gameRandom.next() < 0.3,
+        hasFire: platform5Items.hasFire,
+        hasDrop: platform5Items.hasDrop,
+        dropDirection: platform5Items.dropDirection,
         id: 5,
       },
     ]
@@ -815,68 +1085,113 @@ export default function BaronWeb() {
     // Add extra coins to platform 4 (index 3)
     if (platforms.length >= 4) {
       const platform4 = platforms[3]
-      const COIN_W = 18
-      const COIN_H = 18
+      const COIN_W = 22
+      const COIN_H = 22
 
-      // Add 3 coins on platform 4
+      // Add 3 coins on platform 4 with collision avoidance
       for (let i = 0; i < 3; i++) {
-        const coinX = platform4.x + (i + 1) * (platform4.width / 4) - COIN_W / 2
-        const coinY = platform4.y - COIN_H - 8
+        let attempts = 0
+        let coinPlaced = false
+        
+        while (attempts < 10 && !coinPlaced) {
+          // Try different positions around the planned location
+          const baseX = platform4.x + (i + 1) * (platform4.width / 4)
+          const coinX = baseX + (gameRandom.next() - 0.5) * 30 - COIN_W / 2 // Add some randomness
+          const coinY = platform4.y - COIN_H - 8
 
-        coins.push({
-          x: Math.round(coinX),
-          y: Math.round(coinY),
-          width: COIN_W,
-          height: COIN_H,
-          collected: false,
-        })
+          // Ensure coin stays within platform bounds
+          const finalX = Math.max(platform4.x + 5, Math.min(coinX, platform4.x + platform4.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          if (!checkCoinCollision(newCoin, coins, platform4)) {
+            coins.push(newCoin)
+            coinPlaced = true
+          }
+          attempts++
+        }
       }
     }
 
     // Add extra coins to platform 2 (index 1)
     if (platforms.length >= 2) {
       const platform2 = platforms[1]
-      const COIN_W = 18
-      const COIN_H = 18
+      const COIN_W = 22
+      const COIN_H = 22
 
-      // Add 5 coins on platform 2
+      // Add 5 coins on platform 2 with collision avoidance
       for (let i = 0; i < 5; i++) {
-        const coinX = platform2.x + (i + 1) * (platform2.width / 6) - COIN_W / 2
-        const coinY = platform2.y - COIN_H - 8
+        let attempts = 0
+        let coinPlaced = false
+        
+        while (attempts < 10 && !coinPlaced) {
+          // Try different positions around the planned location
+          const baseX = platform2.x + (i + 1) * (platform2.width / 6)
+          const coinX = baseX + (gameRandom.next() - 0.5) * 30 - COIN_W / 2 // Add some randomness
+          const coinY = platform2.y - COIN_H - 8
 
-        coins.push({
-          x: Math.round(coinX),
-          y: Math.round(coinY),
-          width: COIN_W,
-          height: COIN_H,
-          collected: false,
-        })
+          // Ensure coin stays within platform bounds
+          const finalX = Math.max(platform2.x + 5, Math.min(coinX, platform2.x + platform2.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          if (!checkCoinCollision(newCoin, coins, platform2)) {
+            coins.push(newCoin)
+            coinPlaced = true
+          }
+          attempts++
+        }
       }
     }
 
-    // Add multiple fires to platform 5 (index 4)
-    if (platforms.length >= 5) {
-      platforms[4].hasFire = true // Ensure platform 5 has fire
-    }
+    // Platform 5 only has drop (no fire)
 
     // Add extra coins to platform 7 (index 6)
     if (platforms.length >= 7) {
       const platform7 = platforms[6]
-      const COIN_W = 18
-      const COIN_H = 18
+      const COIN_W = 22
+      const COIN_H = 22
 
-      // Add 6 coins on platform 7
+      // Add 6 coins on platform 7 with collision avoidance
       for (let i = 0; i < 6; i++) {
-        const coinX = platform7.x + (i + 1) * (platform7.width / 7) - COIN_W / 2
-        const coinY = platform7.y - COIN_H - 8
+        let attempts = 0
+        let coinPlaced = false
+        
+        while (attempts < 10 && !coinPlaced) {
+          // Try different positions around the planned location
+          const baseX = platform7.x + (i + 1) * (platform7.width / 7)
+          const coinX = baseX + (gameRandom.next() - 0.5) * 30 - COIN_W / 2 // Add some randomness
+          const coinY = platform7.y - COIN_H - 8
 
-        coins.push({
-          x: Math.round(coinX),
-          y: Math.round(coinY),
-          width: COIN_W,
-          height: COIN_H,
-          collected: false,
-        })
+          // Ensure coin stays within platform bounds
+          const finalX = Math.max(platform7.x + 5, Math.min(coinX, platform7.x + platform7.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          if (!checkCoinCollision(newCoin, coins, platform7)) {
+            coins.push(newCoin)
+            coinPlaced = true
+          }
+          attempts++
+        }
       }
     }
 
@@ -925,25 +1240,30 @@ export default function BaronWeb() {
         velocityX: 0,
         velocityY: 0,
         onGround: false,
+        wasOnGround: false,
         color: "#FF0000",
       },
       platforms,
       clouds,
       camera: { x: 0, y: 0 },
 
-      gravityBase: 0.42, // 30% weaker baseline (back to working value)
+      gravityBase: 0.357, // Reduced by 15% from 0.42
       gravityCurrentDir: 1,
 
       // runtime
       startTimeMs,
 
-      gameSpeed: 1.8, // Start at 1.8 speed (1.5 * 1.2)
+      gameSpeed: 1.4, // Start at 1.4 speed
       platformsPassed: 0,
       lastPlatformX: platforms[platforms.length - 1].x + platforms[platforms.length - 1].width + 200,
       lastCloudX: 20 * 130,
       invulnerable: false,
       invulnerableTime: 0,
       fireStateStartTime: 0,
+      dropHitCount: 0,
+      dropHitStartTime: 0,
+      isDead: false,
+      deadStartTime: 0,
       level: 1,
       checkpointFlag: undefined,
 
@@ -961,10 +1281,32 @@ export default function BaronWeb() {
 
   // Start Again - moved before useEffect that uses it
   const startAgain = useCallback(() => {
+    // Stop game over sound if it's playing
+    if (gameOverAudioRef.current) {
+      gameOverAudioRef.current.pause()
+      gameOverAudioRef.current.currentTime = 0
+      gameOverAudioRef.current = null
+    }
+    
     setIsNewBestScore(false)
-    initializeGame()
-    setIsPlaying(true)
-  }, [initializeGame])
+    setIsGameOver(false)
+    setIsAIMode(false) // Turn off AI mode for manual play
+    setCountdown(3) // Start countdown from 3
+  }, [])
+
+  const startAIPlay = useCallback(() => {
+    // Stop game over sound if it's playing
+    if (gameOverAudioRef.current) {
+      gameOverAudioRef.current.pause()
+      gameOverAudioRef.current.currentTime = 0
+      gameOverAudioRef.current = null
+    }
+    
+    setIsNewBestScore(false)
+    setIsGameOver(false)
+    setIsAIMode(true) // Turn on AI mode
+    setCountdown(3) // Start countdown from 3
+  }, [])
 
   // Input: Space flips during play; Space starts again on Game Over
   useEffect(() => {
@@ -1008,24 +1350,30 @@ export default function BaronWeb() {
     rect1.y < rect2.y + rect2.height &&
     rect1.y + rect1.height > rect2.y
 
-  // Platform fire collision (30% overlap) - supports double fires for higher score
+  // Platform fire collision (30% overlap) - NOW GIVES LIFE
   const checkFireCollision = (player: Player, platform: Platform) => {
     if (!platform.hasFire) return false
     const fireWidth = 35 // 30% bigger (27 * 1.3)
     const fireHeight = 42 // 30% bigger (32 * 1.3)
     const fires: { x: number; y: number; width: number; height: number }[] = []
 
+    // Position fire based on direction
     const centerX = platform.x + (platform.width - fireWidth) / 2
-    const y = platform.y - fireHeight - 1
-    fires.push({ x: centerX, y, width: fireWidth, height: fireHeight })
+    let fireY
+    if (platform.dropDirection === 'up') {
+      fireY = platform.y - fireHeight - 1
+    } else {
+      fireY = platform.y + platform.height + 1
+    }
+    fires.push({ x: centerX, y: fireY, width: fireWidth, height: fireHeight })
 
     // After score 150 and wide platform, add two side fires to increase difficulty
     const currentScore = gameStateRef.current?.platformsPassed || 0
     if (currentScore > 150 && platform.width > 150) {
       const leftX = platform.x + 10
       const rightX = platform.x + platform.width - fireWidth - 10
-      fires.push({ x: leftX, y, width: fireWidth, height: fireHeight })
-      fires.push({ x: rightX, y, width: fireWidth, height: fireHeight })
+      fires.push({ x: leftX, y: fireY, width: fireWidth, height: fireHeight })
+      fires.push({ x: rightX, y: fireY, width: fireWidth, height: fireHeight })
     }
 
     for (const fire of fires) {
@@ -1039,6 +1387,32 @@ export default function BaronWeb() {
       if (overlapArea / playerArea >= 0.3) return true
     }
     return false
+  }
+
+  // Platform drop collision (30% overlap) - TAKES LIFE
+  const checkDropCollision = (player: Player, platform: Platform) => {
+    if (!platform.hasDrop) return false
+    const dropWidth = 42
+    const dropHeight = 42
+
+    // Position drop based on direction
+    let dropX, dropY
+    if (platform.dropDirection === 'up') {
+      dropY = platform.y - dropHeight - 1
+      dropX = platform.x + platform.width - dropWidth - 5
+    } else {
+      dropY = platform.y + platform.height + 1
+      dropX = platform.x + platform.width - dropWidth - 5
+    }
+
+    const overlapLeft = Math.max(player.x, dropX)
+    const overlapRight = Math.min(player.x + player.width, dropX + dropWidth)
+    const overlapTop = Math.max(player.y, dropY)
+    const overlapBottom = Math.min(player.y + player.height, dropY + dropHeight)
+    if (overlapLeft >= overlapRight || overlapTop >= overlapBottom) return false
+    const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop)
+    const playerArea = player.width * player.height
+    return overlapArea / playerArea >= 0.3
   }
 
   // Try to spawn a heart on a platform ahead of the player
@@ -1086,7 +1460,7 @@ export default function BaronWeb() {
     const targetSpeedBase = 1.5 + levelProgress * 1.5 // 1.5 at start, 3.0 at platform 20
 
     // Level-based speed progression - consistent speed per level, 20% increase each level
-    const baseSpeed = 1.8
+    const baseSpeed = 1.4
     const speedMultiplier = Math.pow(1.2, currentLevel - 1) // 20% increase per level
     const targetSpeed = baseSpeed * speedMultiplier
     st.gameSpeed = targetSpeed
@@ -1095,6 +1469,7 @@ export default function BaronWeb() {
     if (currentLevel !== st.level) {
       st.level = currentLevel
       setLevel(currentLevel)
+      playLevelUpSound() // Play level up sound
     }
 
     // Add level boundary markers when platforms are generated
@@ -1156,12 +1531,49 @@ export default function BaronWeb() {
       cloud.x += st.gameSpeed * 0.5
     })
 
-    // Horizontal input
-    if (keysRef.current.has("a") || keysRef.current.has("arrowleft")) {
-      player.velocityX = Math.max(player.velocityX - 0.2, -2.4)
-    } else if (keysRef.current.has("d") || keysRef.current.has("arrowright")) {
-      player.velocityX = Math.min(player.velocityX + 0.2, 3.2)
+    // AI Mode: Simple and effective gameplay logic
+    if (isAIMode && !st.isDead && player.onGround) {
+      // Find the closest platform ahead
+      const nextPlatform = platforms.find(p => p.x > player.x + 20 && p.x < player.x + 400)
+      
+      if (nextPlatform) {
+        const playerCenterY = player.y + player.height / 2
+        const platformCenterY = nextPlatform.y + nextPlatform.height / 2
+        
+        // Simple rule: if platform is far from current position, flip
+        const verticalDistance = Math.abs(playerCenterY - platformCenterY)
+        const needsFlip = verticalDistance > 80 // Platform is significantly off
+        
+        if (needsFlip) {
+          // Check direction: should we flip?
+          if (st.gravityCurrentDir > 0) {
+            // Gravity down: flip if platform is above us
+            if (platformCenterY < playerCenterY - 40) {
+              st.gravityCurrentDir = -st.gravityCurrentDir
+              playVortexSound()
+            }
+          } else {
+            // Gravity up: flip if platform is below us
+            if (platformCenterY > playerCenterY + 40) {
+              st.gravityCurrentDir = -st.gravityCurrentDir
+              playVortexSound()
+            }
+          }
+        }
+      }
+    }
+
+    // Horizontal input (disabled in AI mode)
+    if (!isAIMode) {
+      if (keysRef.current.has("a") || keysRef.current.has("arrowleft")) {
+        player.velocityX = Math.max(player.velocityX - 0.2, -2.4)
+      } else if (keysRef.current.has("d") || keysRef.current.has("arrowright")) {
+        player.velocityX = Math.min(player.velocityX + 0.2, 3.2)
+      } else {
+        player.velocityX *= 0.82
+      }
     } else {
+      // AI mode: minimal horizontal movement
       player.velocityX *= 0.82
     }
 
@@ -1171,33 +1583,123 @@ export default function BaronWeb() {
       player.onGround = false
     }
 
-    // Gravity integration
-    player.velocityY += gravityAccel
+    // Dead state fall animation
+    if (st.isDead) {
+      const deadElapsed = (now - st.deadStartTime) / 1000 // seconds since death
+      if (deadElapsed < 2.0) {
+        // Fall animation for 2 seconds
+        const fallSpeed = 8 + deadElapsed * 4 // Accelerating fall
+        player.velocityY = st.gravityCurrentDir > 0 ? fallSpeed : -fallSpeed
+        player.velocityX = 0 // Stop horizontal movement
+      }
+    } else {
+      // Normal gravity integration
+      player.velocityY += gravityAccel
+    }
 
     // Position
     player.x += player.velocityX
     player.y += player.velocityY
 
     // Platform collisions and scoring
+    player.wasOnGround = player.onGround
     player.onGround = false
     for (const platform of st.platforms) {
-      // Fire collision on platform
-      if (!st.invulnerable && checkFireCollision(player, platform)) {
+      // ============================================================================
+      // FLAME COLLISION - Heals 1 damage state + gives 1 life
+      // ============================================================================
+      // State progression (reverse): Dead → State 3 → State 2 → State 1 (Idle)
+      // Each flame touch moves back ONE state and adds 1 life (max 3)
+      // ============================================================================
+      if (!st.isDead && checkFireCollision(player, platform)) {
+        const newLives = Math.min(lives + 1, 3) // Add 1 life (max 3)
+        setLives(newLives)
+        playSuccessSound()
+        st.fireStateStartTime = Date.now() // Fire visual effect for 1.8s
+        
+        // Cancel invulnerability when touching flame
+        st.invulnerable = false
+        st.invulnerableTime = 0
+        
+        // FLAME HEALS: Reduce drop damage by 1 state
+        st.dropHitCount = Math.max(0, st.dropHitCount - 1)
+        
+        // Only reset the 2-second window timer if fully healed back to Idle
+        if (st.dropHitCount === 0) {
+          st.dropHitStartTime = 0
+        }
+        // Otherwise, timer keeps running from the first drop in the sequence
+        
+        // Mark flame as collected
+        platform.hasFire = false
+      }
+
+      // ============================================================================
+      // DROP COLLISION - Damages 1 state + removes 1 life
+      // ============================================================================
+      // State progression: Idle → State 2 → State 3 → Dead
+      // Drops within 2-second window accumulate damage
+      // After 2 seconds, damage resets to State 2 (fresh sequence)
+      // ============================================================================
+      if (!st.invulnerable && !st.isDead && checkDropCollision(player, platform)) {
         playOuchSound()
         const newLives = lives - 1
         setLives(newLives)
-        if (newLives <= 0) {
-          // Save score and check if it's a new best
-          saveScoreToHistory(score)
-          setIsGameOver(true)
-          setIsPlaying(false)
-          playGameOverMusic()
-          return
+        st.fireStateStartTime = 0 // Cancel fire visual effect
+        
+        const now = Date.now()
+        
+        // Check if within 2-second window of first drop in sequence
+        if (st.dropHitStartTime > 0 && (now - st.dropHitStartTime) <= 2000) {
+          // Within window: increment damage state
+          st.dropHitCount++
+          // Timer keeps running from first drop
         } else {
+          // Outside window or first drop: start new damage sequence
+          st.dropHitCount = 1
+          st.dropHitStartTime = now // Start 2-second window
+        }
+        
+        // Check if game over
+        if (newLives <= 0) {
+          // Out of lives: trigger death
+          st.isDead = true
+          st.deadStartTime = now
+          
+          // Wait 2 seconds to show DEAD state before game over modal
+          setTimeout(() => {
+            saveScoreToHistory(score)
+            setIsGameOver(true)
+            setIsPlaying(false)
+            playGameOverMusic()
+          }, 2000)
+          return
+        }
+        
+        // Still have lives: check damage state
+        if (st.dropHitCount >= 3) {
+          // 3rd drop penalty: show DEAD state for 2 seconds
+          st.isDead = true
+          st.deadStartTime = now
+          
+          // Respawn after 2 seconds if lives remain
+          setTimeout(() => {
+            if (gameStateRef.current) {
+              gameStateRef.current.isDead = false
+              gameStateRef.current.dropHitCount = 0 // Reset to Idle after death penalty
+              gameStateRef.current.dropHitStartTime = 0
+              gameStateRef.current.invulnerable = true
+              gameStateRef.current.invulnerableTime = Date.now() + 2000
+            }
+          }, 2000)
+        } else {
+          // Normal drop hit: 2 seconds invulnerability
           st.invulnerable = true
           st.invulnerableTime = Date.now() + 2000
-          st.fireStateStartTime = Date.now()
         }
+        
+        // Mark drop as collected
+        platform.hasDrop = false
       }
 
       // Platform rect with tiny pavements
@@ -1224,6 +1726,9 @@ export default function BaronWeb() {
           if (minOverlap === overlapTop && player.velocityY > 0) {
             player.y = platformTop - player.height
             player.velocityY = 0
+            if (!player.wasOnGround) {
+              playLandSound() // Play landing sound
+            }
             player.onGround = true
           } else if (minOverlap === overlapBottom && player.velocityY < 0) {
             player.y = platformBottom
@@ -1239,6 +1744,9 @@ export default function BaronWeb() {
           if (minOverlap === overlapBottom && player.velocityY < 0) {
             player.y = platformBottom
             player.velocityY = 0
+            if (!player.wasOnGround) {
+              playLandSound() // Play landing sound
+            }
             player.onGround = true
           } else if (minOverlap === overlapTop && player.velocityY > 0) {
             player.y = platformTop - player.height
@@ -1274,6 +1782,7 @@ export default function BaronWeb() {
     for (const heart of st.hearts) {
       if (heart.collected) continue
       if (
+        !st.isDead &&
         checkCollision(player, {
           x: heart.x,
           y: heart.y,
@@ -1291,6 +1800,7 @@ export default function BaronWeb() {
     for (const coin of st.coins) {
       if (coin.collected) continue
       if (
+        !st.isDead &&
         checkCollision(player, {
           x: coin.x,
           y: coin.y,
@@ -1361,16 +1871,21 @@ export default function BaronWeb() {
     }
 
     // Camera and auto-scroll
-    st.camera.x = player.x - CANVAS_W / 2
+    st.camera.x = player.x - CANVAS_W / 3
     st.camera.y = 0
     player.x += st.gameSpeed
   }, [
     isGameOver,
+    isAIMode,
     lives,
     playOuchSound,
     playGameOverMusic,
     playHeartCollectSound,
     playCoinCollectSound,
+    playSuccessSound,
+    playLandSound,
+    playLevelUpSound,
+    playVortexSound,
     score,
     saveScoreToHistory,
   ])
@@ -1639,7 +2154,7 @@ export default function BaronWeb() {
         // Stylized platform (grass + fringe + dirt)
         drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
-        // Platform number (dev tool)
+        // Platform number (dev tool) - always at bottom of screen
         if (showPlatformNumbers && platform.id) {
           ctx.save()
           ctx.fillStyle = "#ff0000"
@@ -1647,7 +2162,7 @@ export default function BaronWeb() {
           ctx.textAlign = "center"
           ctx.textBaseline = "middle"
           const numberX = platform.x + platform.width / 2
-          const numberY = platform.y + platform.height + 15 // Further down
+          const numberY = CANVAS_H - 20 // 20px from bottom of screen
           ctx.fillText(platform.id.toString(), numberX, numberY)
           ctx.restore()
         }
@@ -1661,22 +2176,59 @@ export default function BaronWeb() {
           }
           const fireWidth = 35 // 30% bigger (27 * 1.3)
           const fireHeight = 42 // 30% bigger (32 * 1.3)
-          const y = platform.y - fireHeight - 1
+          
+          // Position fire based on direction
+          let fireY
+          if (platform.dropDirection === 'up') {
+            // Fire above platform (upright)
+            fireY = platform.y - fireHeight - 1
+          } else {
+            // Fire below platform (upside down)
+            fireY = platform.y + platform.height + 1
+          }
 
           // Render single centered fire for all platforms
           const centerX = platform.x + (platform.width - fireWidth) / 2
-          ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, y, fireWidth, fireHeight)
+          
+          // If fire is below platform, flip it vertically
+          if (platform.dropDirection === 'down') {
+            ctx.save()
+            ctx.translate(centerX + fireWidth / 2, fireY + fireHeight / 2)
+            ctx.scale(1, -1)
+            ctx.drawImage(fireImageRef.current[currentFireFrame], -fireWidth / 2, -fireHeight / 2, fireWidth, fireHeight)
+            ctx.restore()
+          } else {
+            ctx.drawImage(fireImageRef.current[currentFireFrame], centerX, fireY, fireWidth, fireHeight)
+          }
         }
 
         // Platform drop drawing
         if (platform.hasDrop && dropImageRef.current) {
-          const dropWidth = 24
-          const dropHeight = 32
-          const dropY = platform.y - dropHeight - 1
+          const dropWidth = 42
+          const dropHeight = 42
           
-          // Render drop on the right side of platform
-          const dropX = platform.x + platform.width - dropWidth - 5
-          ctx.drawImage(dropImageRef.current, dropX, dropY, dropWidth, dropHeight)
+          // Position drop based on direction
+          let dropX, dropY
+          if (platform.dropDirection === 'up') {
+            // Drop above platform (upright)
+            dropY = platform.y - dropHeight - 1
+            dropX = platform.x + platform.width - dropWidth - 5
+          } else {
+            // Drop below platform (upside down)
+            dropY = platform.y + platform.height + 1
+            dropX = platform.x + platform.width - dropWidth - 5
+          }
+          
+          // If drop is below platform, flip it vertically
+          if (platform.dropDirection === 'down') {
+            ctx.save()
+            ctx.translate(dropX + dropWidth / 2, dropY + dropHeight / 2)
+            ctx.scale(1, -1)
+            ctx.drawImage(dropImageRef.current, -dropWidth / 2, -dropHeight / 2, dropWidth, dropHeight)
+            ctx.restore()
+          } else {
+            ctx.drawImage(dropImageRef.current, dropX, dropY, dropWidth, dropHeight)
+          }
         }
       }
     })
@@ -1695,7 +2247,12 @@ export default function BaronWeb() {
         // Per-coin phase to avoid synchronous flipping (stable from position)
         const phase = (Math.floor(coin.x * 0.07 + coin.y * 0.11) & 3) // 0..3
         const frame = (currentCoinFrame + phase) % 4
-        drawCoin(ctx, coin.x, coin.y, coin.width, coin.height, frame)
+        if (coinImageRef.current && coinImageRef.current[frame]) {
+          ctx.drawImage(coinImageRef.current[frame], coin.x, coin.y, coin.width, coin.height)
+        } else {
+          // Fallback to programmatic drawing if images aren't loaded
+          drawCoin(ctx, coin.x, coin.y, coin.width, coin.height, frame)
+        }
       }
     })
 
@@ -1741,13 +2298,61 @@ export default function BaronWeb() {
       }
     })
 
-    // Player (with fire-state hurt animation)
+    // Player (with dead state, fire-state hurt animation)
     const now = Date.now()
-    const showFireState = st.invulnerable && now - st.fireStateStartTime < 1800
+    const showFireState = now - st.fireStateStartTime < 1800 && !st.isDead
 
-    if (showFireState && fireStateImageRef.current) {
+    // Dead state rendering
+    if (st.isDead && deadImageRef.current) {
+      ctx.save()
+      
+      if (st.gravityCurrentDir < 0) {
+        ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
+        ctx.scale(1, -1)
+        ctx.translate(-player.width / 2, -player.height / 2)
+      } else {
+        ctx.translate(Math.round(player.x), Math.round(player.y))
+      }
+      
+      ctx.drawImage(deadImageRef.current, 0, 0, player.width, player.height)
+      ctx.restore()
+    } else if (showFireState && fireStateImageRef.current) {
       const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3) // Back to 3 frames to match available images
       ctx.save()
+      
+      // Runner State System: Idle → Drop1 → Drop2 → Dead
+      let saturation = 1.2 // Default: 120% saturation (State 1: Idle)
+      let brightness = 1.0 // Default: 100% brightness (State 1: Idle)
+      
+      // Apply drop hit effects based on state
+      if (st.dropHitCount === 1) {
+        // State 2: Drop Hit 1
+        saturation = 0.6 // 60% saturation
+        brightness = 0.8 // 80% brightness
+      } else if (st.dropHitCount === 2) {
+        // State 3: Drop Hit 2
+        saturation = 0.0 // 0% saturation
+        brightness = 0.5 // 50% brightness
+      } else if (st.dropHitCount >= 3) {
+        // State 4: Dead (handled by dead image rendering)
+        saturation = 0.1 // 10% saturation
+        brightness = 0.5 // 50% brightness
+      }
+      // State 1: Idle (default values above)
+      
+      ctx.filter = `saturate(${saturation}) brightness(${brightness})`
+      
+      // Debug logging for saturation
+      if (st.dropHitCount === 0) {
+        console.log(`STATE 1 (Idle): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount === 1) {
+        console.log(`STATE 2 (Drop Hit 1): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount === 2) {
+        console.log(`STATE 3 (Drop Hit 2): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount >= 3) {
+        console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
+      }
+      
       if (st.gravityCurrentDir < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
@@ -1763,6 +2368,40 @@ export default function BaronWeb() {
         lastFrameTimeRef.current = Date.now()
       }
       ctx.save()
+      
+      // Runner State System: Idle → Drop1 → Drop2 → Dead
+      let saturation = 1.2 // Default: 120% saturation (State 1: Idle)
+      let brightness = 1.0 // Default: 100% brightness (State 1: Idle)
+      
+      // Apply drop hit effects based on state
+      if (st.dropHitCount === 1) {
+        // State 2: Drop Hit 1
+        saturation = 0.6 // 60% saturation
+        brightness = 0.8 // 80% brightness
+      } else if (st.dropHitCount === 2) {
+        // State 3: Drop Hit 2
+        saturation = 0.0 // 0% saturation
+        brightness = 0.5 // 50% brightness
+      } else if (st.dropHitCount >= 3) {
+        // State 4: Dead (handled by dead image rendering)
+        saturation = 0.1 // 10% saturation
+        brightness = 0.5 // 50% brightness
+      }
+      // State 1: Idle (default values above)
+      
+      ctx.filter = `saturate(${saturation}) brightness(${brightness})`
+      
+      // Debug logging for saturation
+      if (st.dropHitCount === 0) {
+        console.log(`STATE 1 (Idle): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount === 1) {
+        console.log(`STATE 2 (Drop Hit 1): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount === 2) {
+        console.log(`STATE 3 (Drop Hit 2): saturation=${saturation}, brightness=${brightness}`)
+      } else if (st.dropHitCount >= 3) {
+        console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
+      }
+      
       if (st.gravityCurrentDir < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
@@ -1810,9 +2449,34 @@ export default function BaronWeb() {
     loadScoreHistory()
   }, [loadScoreHistory])
 
+  // Countdown logic
+  useEffect(() => {
+    if (countdown === null) return
+
+    if (countdown === 0) {
+      // Start the game when countdown reaches 0
+      setCountdown(null)
+      initializeGame()
+      setIsPlaying(true)
+      return
+    }
+
+    // Countdown timer
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [countdown, initializeGame])
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-2">
-      <BrandHeader showPlatformNumbers={showPlatformNumbers} setShowPlatformNumbers={setShowPlatformNumbers} />
+      <BrandHeader 
+        showPlatformNumbers={showPlatformNumbers} 
+        setShowPlatformNumbers={setShowPlatformNumbers}
+        soundEnabled={soundEnabled}
+        setSoundEnabled={setSoundEnabled}
+      />
 
       {/* Top panel outside the game frame */}
       <div className="w-[390px]">
@@ -1875,6 +2539,19 @@ export default function BaronWeb() {
           className="border-b-2 border-gray-300 border-x-0 border-t-0 cursor-pointer bg-white rounded-b-lg rounded-t-none"
         />
 
+        {countdown !== null && (
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+            <div className="text-center">
+              <div
+                className="text-6xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
+                style={{ fontFamily: "Rethink Sans, sans-serif" }}
+              >
+                {countdown === 0 ? 'GO!' : countdown}
+              </div>
+            </div>
+          </div>
+        )}
+
         {isGameOver && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
             <div className="relative">
@@ -1883,11 +2560,6 @@ export default function BaronWeb() {
                 className="bg-white rounded-2xl p-6 text-center shadow-2xl mx-3 pt-6"
                 style={{ fontFamily: "Rethink Sans, sans-serif" }}
               >
-                {/* Branding logo */}
-                <div className="flex justify-center mb-6">
-                  <img src="/branding.svg" alt="Baron Crust" className="w-24 h-auto" />
-                </div>
-
                 {/* Game Over text */}
                 <h2
                   className="text-3xl font-bold text-red-600 mb-2 select-none"
@@ -1919,10 +2591,19 @@ export default function BaronWeb() {
                 {/* Start Again Button */}
                 <button
                   onClick={startAgain}
-                  className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl text-lg mb-4 transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+                  className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl text-lg mb-3 transition-all duration-200 hover:scale-105 active:scale-95 select-none"
                   style={{ fontFamily: "Rethink Sans, sans-serif" }}
                 >
                   START AGAIN
+                </button>
+
+                {/* AI Play Button */}
+                <button
+                  onClick={startAIPlay}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-2xl text-lg mb-4 transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
+                >
+                  AI PLAY
                 </button>
 
                 {/* Best Score */}

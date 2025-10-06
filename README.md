@@ -1,10 +1,10 @@
-# Baron
+# Coal Jack
 
 A gravity-flipping platformer game available in web and mobile versions.
 
 ## Deployment
 
-- **Web Version**: https://baron-01.vercel.app
+- **Web Version**: https://coal-jack-01.vercel.app
 - **Mobile Version**: iOS app via TestFlight
 
 ## Tech Stack
