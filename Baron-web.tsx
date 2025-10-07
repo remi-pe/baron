@@ -2063,12 +2063,12 @@ export default function BaronWeb() {
   }
 
   function drawStyledPlatform(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, collisionHeight: number) {
-    // Visual style heights (do not affect collisions)
+    // Simplified platform design for better performance
+    // Visual heights (collision uses collisionHeight parameter)
     const grassH = 8
-    const fringeH = 4
     const dirtH = 14
 
-    // Grass cap (light green gradient)
+    // Grass cap (simple gradient, no patches or fringe)
     const grassTopY = y - grassH
     const grassGrad = ctx.createLinearGradient(0, grassTopY, 0, y)
     grassGrad.addColorStop(0, "#d7ff6a")
@@ -2076,41 +2076,7 @@ export default function BaronWeb() {
     ctx.fillStyle = grassGrad
     ctx.fillRect(x, grassTopY, w, grassH)
 
-    // Subtle grass patches
-    ctx.save()
-    ctx.globalAlpha = 0.15
-    ctx.fillStyle = "#9edb3f"
-    const patchCount = Math.max(3, Math.floor(w / 90))
-    for (let i = 0; i < patchCount; i++) {
-      const px = x + (i + 0.5) * (w / patchCount)
-      const py = grassTopY + 3 + (i % 2 === 0 ? 1 : 0)
-      const pw = w / (patchCount + 1)
-      const ph = 6
-      ctx.beginPath()
-      ctx.ellipse(px, py, Math.max(12, pw * 0.25), ph, 0, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    ctx.restore()
-
-    // Grass fringe (ragged edge)
-    ctx.save()
-    ctx.fillStyle = "#3c6b1a"
-    const spikes = Math.max(12, Math.floor(w / 16))
-    const step = w / spikes
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    for (let i = 0; i <= spikes; i++) {
-      const px = x + i * step
-      const py = y + (i % 2 === 0 ? 0 : fringeH) // alternating spikes
-      ctx.lineTo(px, py)
-    }
-    ctx.lineTo(x + w, y + 1)
-    ctx.lineTo(x, y + 1)
-    ctx.closePath()
-    ctx.fill()
-    ctx.restore()
-
-    // Dirt body (layered brown gradient)
+    // Dirt body (simple gradient, no waves or pebbles)
     const dirtTopY = y
     const dirtGrad = ctx.createLinearGradient(0, dirtTopY, 0, dirtTopY + dirtH)
     dirtGrad.addColorStop(0, "#bf6b32")
@@ -2118,50 +2084,9 @@ export default function BaronWeb() {
     ctx.fillStyle = dirtGrad
     ctx.fillRect(x, dirtTopY, w, dirtH)
 
-    // Sediment waves (light layers)
-    const layers = 3
-    for (let i = 0; i < layers; i++) {
-      const ly = dirtTopY + 4 + i * 4
-      ctx.save()
-      ctx.globalAlpha = 0.25 - i * 0.05
-      ctx.fillStyle = i % 2 === 0 ? "#e7a96a" : "#d7894a"
-      ctx.beginPath()
-      ctx.moveTo(x, ly)
-      const hump = 8
-      const segs = Math.max(4, Math.floor(w / 60))
-      const segW = w / segs
-      for (let s = 0; s <= segs; s++) {
-        const px = x + s * segW
-        const py = ly + Math.sin((s + i) * 0.8) * (hump - i * 2)
-        ctx.lineTo(px, py)
-      }
-      ctx.lineTo(x + w, ly + 5)
-      ctx.lineTo(x, ly + 5)
-      ctx.closePath()
-      ctx.fill()
-      ctx.restore()
-    }
-
-    // Pebbles
-    const pebbleCount = Math.max(2, Math.floor(w / 140))
-    for (let i = 0; i < pebbleCount; i++) {
-      // deterministic pseudo-random per segment
-      const r = Math.abs(Math.sin((x + i * 13.37) * 0.01))
-      const px = x + (i + 0.3) * (w / pebbleCount)
-      const py = dirtTopY + 6 + r * (dirtH - 8)
-      const pr = 1.5 + r * 1.2
-      ctx.save()
-      ctx.fillStyle = "#e8d7c8"
-      ctx.globalAlpha = 0.85
-      ctx.beginPath()
-      ctx.ellipse(px, py, pr * 1.2, pr, 0, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-    }
-
-    // Thin highlight line at the very top of grass
+    // Simple highlight line at top of grass (optional, minimal cost)
     ctx.save()
-    ctx.globalAlpha = 0.5
+    ctx.globalAlpha = 0.3
     ctx.strokeStyle = "#f0ffb0"
     ctx.lineWidth = 1
     ctx.beginPath()
