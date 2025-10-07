@@ -2234,16 +2234,8 @@ export default function BaronWeb() {
     // Platforms and platform fires
     platforms.forEach((platform, index) => {
       if (platform.x + platform.width > camera.x && platform.x < camera.x + canvas.width) {
-        // Use simple platforms on mobile for performance
-        const isMobileDevice = window.innerWidth < 768
-        if (isMobileDevice) {
-          // Simple flat platform for mobile performance
-          ctx.fillStyle = "#8B4513"
-          ctx.fillRect(platform.x, platform.y, platform.width, platform.height)
-        } else {
-          // Stylized platform (grass + fringe + dirt) for desktop
-          drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
-        }
+        // Stylized platform (grass + fringe + dirt) for all devices
+        drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
 
 
         // Platform fire drawing
