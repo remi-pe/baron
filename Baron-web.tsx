@@ -56,13 +56,7 @@ interface Cloud {
   opacity: number
 }
 
-interface Heart {
-  x: number
-  y: number
-  width: number
-  height: number
-  collected: boolean
-}
+
 
 interface Coin {
   x: number
@@ -114,8 +108,6 @@ interface GameState {
   checkpointFlag?: { x: number; y: number; width: number; height: number; passed: boolean }
 
   // Collectibles
-  hearts: Heart[]
-  nextHeartScore: number
   coins: Coin[]
   coinEffects: CoinEffect[]
 
@@ -250,15 +242,7 @@ function BrandHeader({
               >
                 🪙 Coin
               </button>
-              <button
-                onClick={() => toggleSound('heartCollect')}
-                className={`px-3 py-2 rounded-lg border-2 transition-colors ${
-                  soundEnabled.heartCollect ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-                title="Heart collect sound"
-              >
-                ❤️ Heart
-              </button>
+
               <button
                 onClick={() => toggleSound('bgMusic')}
                 className={`px-3 py-2 rounded-lg border-2 transition-colors ${
@@ -322,7 +306,6 @@ export default function BaronWeb() {
   const [soundEnabled, setSoundEnabled] = useState({
     vortex: true,      // Gravity flip
     ouch: true,        // Hit by drop
-    heartCollect: true, // Collect heart
     coinCollect: true,  // Collect coin
     success: true,      // Touch flame
     land: true,         // Land on platform
@@ -1343,8 +1326,6 @@ export default function BaronWeb() {
       lastLandTime: 0,
       checkpointFlag: undefined,
 
-      hearts: [],
-      nextHeartScore: 25, // Start at 25, then every 25
       coins,
       coinEffects: [],
       levelBoundaries: [],
@@ -1491,28 +1472,7 @@ export default function BaronWeb() {
     return overlapArea / playerArea >= 0.3
   }
 
-  // Try to spawn a heart on a platform ahead of the player
-  const trySpawnHeart = (st: GameState) => {
-    const player = st.player
-    const HEART_W = 14
-    const HEART_H = 12
-    // Look for a safe platform somewhat ahead
-    const aheadMin = player.x + 420
-    const aheadMax = player.x + 1000
-    const candidate = st.platforms.find(
-      (p) => p.x + p.width / 2 > aheadMin && p.x + p.width / 2 < aheadMax && p.width > 110,
-    )
-    if (!candidate) return false
-    const heart: Heart = {
-      x: Math.round(candidate.x + candidate.width / 2 - HEART_W / 2),
-      y: Math.round(candidate.y - HEART_H - 2),
-      width: HEART_W,
-      height: HEART_H,
-      collected: false,
-    }
-    st.hearts.push(heart)
-    return true
-  }
+
 
   // Update
   const updateGame = useCallback(() => {
@@ -1595,8 +1555,7 @@ export default function BaronWeb() {
     // Remove old items
     st.platforms = platforms.filter((p) => p.x > camera.x - 400)
     st.clouds = clouds.filter((c) => c.x > camera.x - 400)
-    // Remove hearts far behind or collected
-    st.hearts = st.hearts.filter((h) => !h.collected && h.x > camera.x - 100)
+
     // Remove coins far behind or collected
     st.coins = st.coins.filter((c) => !c.collected && c.x > camera.x - 100)
     // Remove old level boundaries
@@ -1850,32 +1809,7 @@ export default function BaronWeb() {
       }
     }
 
-    // Spawn a heart each time we cross the threshold (25, 50, 75, ...)
-    if (st.platformsPassed >= st.nextHeartScore) {
-      const spawned = trySpawnHeart(st)
-      if (spawned) {
-        st.nextHeartScore += 25 // every 25 score
-      }
-      // If not spawned, we'll retry next frame until a candidate appears
-    }
 
-    // Heart pickups
-    for (const heart of st.hearts) {
-      if (heart.collected) continue
-      if (
-        !st.isDead &&
-        checkCollision(player, {
-          x: heart.x,
-          y: heart.y,
-          width: heart.width,
-          height: heart.height,
-        })
-      ) {
-        heart.collected = true
-        setLives((prev) => Math.min(MAX_LIVES, prev + 1))
-        playHeartCollectSound()
-      }
-    }
 
     // Coin pickups
     for (const coin of st.coins) {
@@ -1963,7 +1897,6 @@ export default function BaronWeb() {
     lives,
     playOuchSound,
     playGameOverMusic,
-    playHeartCollectSound,
     playCoinCollectSound,
     playSuccessSound,
     playLandSound,
@@ -2307,13 +2240,7 @@ export default function BaronWeb() {
       ctx.restore()
     })
 
-    // Hearts (collectibles)
-    st.hearts.forEach((heart) => {
-      if (heart.collected) return
-      if (heart.x + heart.width > camera.x && heart.x < camera.x + canvas.width) {
-        drawHeart(ctx, heart.x, heart.y, heart.width, heart.height)
-      }
-    })
+
 
     // Player (with dead state, fire-state hurt animation)
     const now = Date.now()
