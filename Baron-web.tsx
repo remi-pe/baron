@@ -749,7 +749,7 @@ export default function BaronWeb() {
 
     // Unlock audio on first user interaction (browser autoplay policy)
     const unlockAudio = () => {
-      console.log('🔊 Unlocking audio...')
+      // Unlocking audio
       // Play and immediately pause each audio to unlock them
       const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio]
       audios.forEach(audio => {
@@ -1725,16 +1725,10 @@ export default function BaronWeb() {
         // Simple increment: each drop = +1 damage state (no time window)
         st.dropHitCount++
         
-        console.log('💧 DROP HIT:', {
-          dropHitCount: st.dropHitCount,
-          newLives: newLives,
-          playerX: player.x,
-          playerY: player.y
-        })
         
         // Check for 3rd drop FIRST (always game over)
         if (st.dropHitCount >= 3) {
-          console.log('💀 3RD DROP - ENTERING DEAD STATE')
+          // 3rd drop detected
           // 3rd drop: GAME OVER after 2-second delay
           st.isDead = true
           st.deadStartTime = now
@@ -2292,19 +2286,8 @@ export default function BaronWeb() {
 
     // Dead state rendering
     if (st.isDead) {
-      console.log('🔴 DEAD STATE RENDERING:', {
-        isDead: st.isDead,
-        playerX: player.x,
-        playerY: player.y,
-        cameraX: camera.x,
-        deadImageLoaded: !!deadImageRef.current,
-        characterImageLoaded: !!characterImageRef.current
-      })
       
       ctx.save()
-      
-      // Apply dead state filter (10% saturation, 50% brightness)
-      ctx.filter = 'saturate(0.1) brightness(0.5)'
       
       if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -2318,51 +2301,24 @@ export default function BaronWeb() {
       if (deadImageRef.current) {
         ctx.drawImage(deadImageRef.current, 0, 0, player.width, player.height)
       } else if (characterImageRef.current) {
-        // Fallback: use first frame of normal character with dead filter
+        // Fallback: use first frame of normal character
         ctx.drawImage(characterImageRef.current[0], 0, 0, player.width, player.height)
       } else {
-        // Last resort fallback: draw a red rectangle
+        // Last resort fallback: draw a dark red rectangle
         ctx.fillStyle = "#8B0000"
         ctx.fillRect(0, 0, player.width, player.height)
       }
       
+      // Fast overlay for dead state effect (instead of expensive filter)
+      ctx.globalAlpha = 0.4
+      ctx.fillStyle = "#000000"
+      ctx.fillRect(0, 0, player.width, player.height)
+      ctx.globalAlpha = 1.0
+      
       ctx.restore()
     } else if (showFireState && fireStateImageRef.current) {
-      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3) // Back to 3 frames to match available images
+      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3)
       ctx.save()
-      
-      // Runner State System: Idle → Drop1 → Drop2 → Dead
-      let saturation = 1.2 // Default: 120% saturation (State 1: Idle)
-      let brightness = 1.0 // Default: 100% brightness (State 1: Idle)
-      
-      // Apply drop hit effects based on state
-      if (st.dropHitCount === 1) {
-        // State 2: Drop Hit 1
-        saturation = 0.6 // 60% saturation
-        brightness = 0.8 // 80% brightness
-      } else if (st.dropHitCount === 2) {
-        // State 3: Drop Hit 2
-        saturation = 0.0 // 0% saturation
-        brightness = 0.5 // 50% brightness
-      } else if (st.dropHitCount >= 3) {
-        // State 4: Dead (handled by dead image rendering)
-        saturation = 0.1 // 10% saturation
-        brightness = 0.5 // 50% brightness
-      }
-      // State 1: Idle (default values above)
-      
-      ctx.filter = `saturate(${saturation}) brightness(${brightness})`
-      
-      // Debug logging for saturation
-      if (st.dropHitCount === 0) {
-        console.log(`STATE 1 (Idle): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount === 1) {
-        console.log(`STATE 2 (Drop Hit 1): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount === 2) {
-        console.log(`STATE 3 (Drop Hit 2): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount >= 3) {
-        console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
-      }
       
       if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -2372,6 +2328,22 @@ export default function BaronWeb() {
         ctx.translate(Math.round(player.x), Math.round(player.y))
       }
       ctx.drawImage(fireStateImageRef.current[idx], 0, 0, player.width, player.height)
+      
+      // Fast overlay for damage states (instead of expensive CSS filters)
+      if (st.dropHitCount === 1) {
+        // State 2: Slightly darker
+        ctx.globalAlpha = 0.2
+        ctx.fillStyle = "#000000"
+        ctx.fillRect(0, 0, player.width, player.height)
+        ctx.globalAlpha = 1.0
+      } else if (st.dropHitCount === 2) {
+        // State 3: Much darker (grayscale effect)
+        ctx.globalAlpha = 0.5
+        ctx.fillStyle = "#000000"
+        ctx.fillRect(0, 0, player.width, player.height)
+        ctx.globalAlpha = 1.0
+      }
+      
       ctx.restore()
     } else if (characterImageRef.current) {
       if (Date.now() - lastFrameTimeRef.current > 100) {
@@ -2379,39 +2351,6 @@ export default function BaronWeb() {
         lastFrameTimeRef.current = Date.now()
       }
       ctx.save()
-      
-      // Runner State System: Idle → Drop1 → Drop2 → Dead
-      let saturation = 1.2 // Default: 120% saturation (State 1: Idle)
-      let brightness = 1.0 // Default: 100% brightness (State 1: Idle)
-      
-      // Apply drop hit effects based on state
-      if (st.dropHitCount === 1) {
-        // State 2: Drop Hit 1
-        saturation = 0.6 // 60% saturation
-        brightness = 0.8 // 80% brightness
-      } else if (st.dropHitCount === 2) {
-        // State 3: Drop Hit 2
-        saturation = 0.0 // 0% saturation
-        brightness = 0.5 // 50% brightness
-      } else if (st.dropHitCount >= 3) {
-        // State 4: Dead (handled by dead image rendering)
-        saturation = 0.1 // 10% saturation
-        brightness = 0.5 // 50% brightness
-      }
-      // State 1: Idle (default values above)
-      
-      ctx.filter = `saturate(${saturation}) brightness(${brightness})`
-      
-      // Debug logging for saturation
-      if (st.dropHitCount === 0) {
-        console.log(`STATE 1 (Idle): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount === 1) {
-        console.log(`STATE 2 (Drop Hit 1): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount === 2) {
-        console.log(`STATE 3 (Drop Hit 2): saturation=${saturation}, brightness=${brightness}`)
-      } else if (st.dropHitCount >= 3) {
-        console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
-      }
       
       if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
@@ -2421,6 +2360,22 @@ export default function BaronWeb() {
         ctx.translate(Math.round(player.x), Math.round(player.y))
       }
       ctx.drawImage(characterImageRef.current[currentFrame], 0, 0, player.width, player.height)
+      
+      // Fast overlay for damage states (instead of expensive CSS filters)
+      if (st.dropHitCount === 1) {
+        // State 2: Slightly darker
+        ctx.globalAlpha = 0.2
+        ctx.fillStyle = "#000000"
+        ctx.fillRect(0, 0, player.width, player.height)
+        ctx.globalAlpha = 1.0
+      } else if (st.dropHitCount === 2) {
+        // State 3: Much darker (grayscale effect)
+        ctx.globalAlpha = 0.5
+        ctx.fillStyle = "#000000"
+        ctx.fillRect(0, 0, player.width, player.height)
+        ctx.globalAlpha = 1.0
+      }
+      
       ctx.restore()
     } else {
       ctx.fillStyle = player.color
