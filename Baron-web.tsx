@@ -857,7 +857,7 @@ export default function BaronWeb() {
     const newPlatforms: Platform[] = []
     const runnerHeight = 33 // Character height (named "runner")
     const minSpacing = runnerHeight * 2 // 66px
-    const platformHeight = 24
+    const platformHeight = 6
 
     let currentX = startX
     for (let i = 0; i < count; i++) {
@@ -1105,12 +1105,12 @@ export default function BaronWeb() {
     const platform5Items = getPlatformItems(5)
 
     const platforms: Platform[] = [
-      { x: 0, y: 317, width: pickRatioWidth() * 2, height: 24, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
+      { x: 0, y: 317, width: pickRatioWidth() * 2, height: 6, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
       {
         x: 170,
         y: 100,
         width: pickRatioWidth(),
-        height: 24,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform2Items.hasFire,
@@ -1122,7 +1122,7 @@ export default function BaronWeb() {
         x: 330,
         y: 240,
         width: pickRatioWidth() * 1.4, // Make platform 3 40% longer
-        height: 24,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform3Items.hasFire,
@@ -1134,7 +1134,7 @@ export default function BaronWeb() {
         x: 480,
         y: 110,
         width: pickRatioWidth(),
-        height: 24,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform4Items.hasFire,
@@ -1146,7 +1146,7 @@ export default function BaronWeb() {
         x: 640,
         y: 200,
         width: pickRatioWidth(),
-        height: 24,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform5Items.hasFire,
@@ -1297,7 +1297,7 @@ export default function BaronWeb() {
 
       // Vertical: move away from p12 by a bit, clamped to bounds
       const extraGapY = 50
-      const platformHeight = 24
+      const platformHeight = 6
       const minY = TOP_BOUND + 64
       const maxY = BOTTOM_BOUND - 64
       const minMargin = 32 // keep some clearance from top/bottom
@@ -2063,18 +2063,112 @@ export default function BaronWeb() {
   }
 
   function drawStyledPlatform(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, collisionHeight: number) {
-    // Simple two-layer design: 10px green top + 14px brown bottom = 24px total
-    const greenH = 10
-    const brownH = 14
-    
-    // Green layer on top (solid color)
-    const greenY = y - greenH
-    ctx.fillStyle = "#7CB342" // Solid green
-    ctx.fillRect(x, greenY, w, greenH)
-    
-    // Brown layer on bottom (solid color)
-    ctx.fillStyle = "#6D4C41" // Solid brown
-    ctx.fillRect(x, y, w, brownH)
+    // Visual style heights (do not affect collisions)
+    const grassH = 8
+    const fringeH = 4
+    const dirtH = 14
+
+    // Grass cap (light green gradient)
+    const grassTopY = y - grassH
+    const grassGrad = ctx.createLinearGradient(0, grassTopY, 0, y)
+    grassGrad.addColorStop(0, "#d7ff6a")
+    grassGrad.addColorStop(1, "#b6ef53")
+    ctx.fillStyle = grassGrad
+    ctx.fillRect(x, grassTopY, w, grassH)
+
+    // Subtle grass patches
+    ctx.save()
+    ctx.globalAlpha = 0.15
+    ctx.fillStyle = "#9edb3f"
+    const patchCount = Math.max(3, Math.floor(w / 90))
+    for (let i = 0; i < patchCount; i++) {
+      const px = x + (i + 0.5) * (w / patchCount)
+      const py = grassTopY + 3 + (i % 2 === 0 ? 1 : 0)
+      const pw = w / (patchCount + 1)
+      const ph = 6
+      ctx.beginPath()
+      ctx.ellipse(px, py, Math.max(12, pw * 0.25), ph, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.restore()
+
+    // Grass fringe (ragged edge)
+    ctx.save()
+    ctx.fillStyle = "#3c6b1a"
+    const spikes = Math.max(12, Math.floor(w / 16))
+    const step = w / spikes
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    for (let i = 0; i <= spikes; i++) {
+      const px = x + i * step
+      const py = y + (i % 2 === 0 ? 0 : fringeH) // alternating spikes
+      ctx.lineTo(px, py)
+    }
+    ctx.lineTo(x + w, y + 1)
+    ctx.lineTo(x, y + 1)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+
+    // Dirt body (layered brown gradient)
+    const dirtTopY = y
+    const dirtGrad = ctx.createLinearGradient(0, dirtTopY, 0, dirtTopY + dirtH)
+    dirtGrad.addColorStop(0, "#bf6b32")
+    dirtGrad.addColorStop(1, "#8a421f")
+    ctx.fillStyle = dirtGrad
+    ctx.fillRect(x, dirtTopY, w, dirtH)
+
+    // Sediment waves (light layers)
+    const layers = 3
+    for (let i = 0; i < layers; i++) {
+      const ly = dirtTopY + 4 + i * 4
+      ctx.save()
+      ctx.globalAlpha = 0.25 - i * 0.05
+      ctx.fillStyle = i % 2 === 0 ? "#e7a96a" : "#d7894a"
+      ctx.beginPath()
+      ctx.moveTo(x, ly)
+      const hump = 8
+      const segs = Math.max(4, Math.floor(w / 60))
+      const segW = w / segs
+      for (let s = 0; s <= segs; s++) {
+        const px = x + s * segW
+        const py = ly + Math.sin((s + i) * 0.8) * (hump - i * 2)
+        ctx.lineTo(px, py)
+      }
+      ctx.lineTo(x + w, ly + 5)
+      ctx.lineTo(x, ly + 5)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+
+    // Pebbles
+    const pebbleCount = Math.max(2, Math.floor(w / 140))
+    for (let i = 0; i < pebbleCount; i++) {
+      // deterministic pseudo-random per segment
+      const r = Math.abs(Math.sin((x + i * 13.37) * 0.01))
+      const px = x + (i + 0.3) * (w / pebbleCount)
+      const py = dirtTopY + 6 + r * (dirtH - 8)
+      const pr = 1.5 + r * 1.2
+      ctx.save()
+      ctx.fillStyle = "#e8d7c8"
+      ctx.globalAlpha = 0.85
+      ctx.beginPath()
+      ctx.ellipse(px, py, pr * 1.2, pr, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    // Thin highlight line at the very top of grass
+    ctx.save()
+    ctx.globalAlpha = 0.5
+    ctx.strokeStyle = "#f0ffb0"
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x + 0.5, grassTopY + 0.5)
+    ctx.lineTo(x + w - 0.5, grassTopY + 0.5)
+    ctx.stroke()
+    ctx.restore()
   }
 
   // Render
