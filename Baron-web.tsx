@@ -339,9 +339,10 @@ export default function BaronWeb() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // Cap DPR at 1.5 for mobile performance (3x is too intensive)
+    // Cap DPR at 1.0 for mobile performance (disable high DPI on mobile)
     const rawDpr = window.devicePixelRatio || 1
-    const dpr = Math.min(1.5, Math.max(1, rawDpr))
+    const isMobileDevice = window.innerWidth < 768
+    const dpr = isMobileDevice ? 1.0 : Math.min(1.5, Math.max(1, rawDpr))
     // Set backing resolution
     canvas.width = CANVAS_W * dpr
     canvas.height = CANVAS_H * dpr
@@ -352,6 +353,8 @@ export default function BaronWeb() {
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.imageSmoothingEnabled = false
+      // Disable anti-aliasing for better mobile performance
+      ctx.imageSmoothingQuality = 'low'
     }
   }, [])
 
@@ -2231,8 +2234,16 @@ export default function BaronWeb() {
     // Platforms and platform fires
     platforms.forEach((platform, index) => {
       if (platform.x + platform.width > camera.x && platform.x < camera.x + canvas.width) {
-        // Stylized platform (grass + fringe + dirt)
-        drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
+        // Use simple platforms on mobile for performance
+        const isMobileDevice = window.innerWidth < 768
+        if (isMobileDevice) {
+          // Simple flat platform for mobile performance
+          ctx.fillStyle = "#8B4513"
+          ctx.fillRect(platform.x, platform.y, platform.width, platform.height)
+        } else {
+          // Stylized platform (grass + fringe + dirt) for desktop
+          drawStyledPlatform(ctx, platform.x, platform.y, platform.width, platform.height)
+        }
 
 
         // Platform fire drawing
