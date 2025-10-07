@@ -18,7 +18,7 @@ class SeededRandom {
 let gameRandom = new SeededRandom(12345) // Fixed seed for consistent game generation
 
 const CANVAS_W = 390
-const CANVAS_H = 540
+const CANVAS_H = 640
 const TOP_BOUND = 0
 const BOTTOM_BOUND = CANVAS_H
 const MAX_LIVES = 3
@@ -92,9 +92,9 @@ interface GameState {
   clouds: Cloud[]
   camera: { x: number; y: number }
 
-  // Gravity (instant flip)
-  gravityBase: number // g0
-  gravityCurrentDir: number // ±1 (1 for down, -1 for up)
+  // Linear Pull Gravity (constant velocity)
+  pullSpeed: number // Constant velocity toward gravity direction
+  pullDirection: number // ±1 (1 for down, -1 for up)
 
   // Runtime
   startTimeMs: number
@@ -107,10 +107,10 @@ interface GameState {
   invulnerableTime: number
   fireStateStartTime: number
   dropHitCount: number
-  dropHitStartTime: number
   isDead: boolean
   deadStartTime: number
   level: number
+  lastLandTime: number // Track last landing sound time for cooldown
   checkpointFlag?: { x: number; y: number; width: number; height: number; passed: boolean }
 
   // Collectibles
@@ -144,6 +144,17 @@ function BrandHeader({
   setSoundEnabled: (enabled: any) => void
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const toggleSound = (key: keyof typeof soundEnabled) => {
     setSoundEnabled({ ...soundEnabled, [key]: !soundEnabled[key] })
@@ -151,13 +162,14 @@ function BrandHeader({
 
   return (
     <div className="w-full max-w-[800px] mb-3 relative z-[100]">
-      {/* Dev Tools Dropdown Button */}
-      <div className="flex justify-center">
-        <button
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 relative z-[100]"
-        >
-          🛠️ Dev Tools
+      {/* Dev Tools Dropdown Button - Desktop Only */}
+      {!isMobile && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 relative z-[100]"
+          >
+            🛠️ Dev Tools
           <svg 
             className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
             fill="none" 
@@ -166,8 +178,9 @@ function BrandHeader({
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
 
       {/* Dropdown Content */}
       {isDropdownOpen && (
@@ -287,6 +300,11 @@ export default function BaronWeb() {
   const dropImageRef = useRef<HTMLImageElement>()
   const coinImageRef = useRef<HTMLImageElement[] | null>(null)
   const lastFrameTimeRef = useRef(0)
+  const dropHitAudioRef = useRef<HTMLAudioElement | null>(null)
+  const coinCollectAudioRef = useRef<HTMLAudioElement | null>(null)
+  const flameTouchAudioRef = useRef<HTMLAudioElement | null>(null)
+  const landAudioRef = useRef<HTMLAudioElement | null>(null)
+  const levelUpAudioRef = useRef<HTMLAudioElement | null>(null)
   const lastFireFrameTimeRef = useRef(0)
   const lastCoinFrameTimeRef = useRef(0)
   const gameOverAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -472,62 +490,15 @@ export default function BaronWeb() {
   }, [soundEnabled])
 
   const playOuchSound = useCallback(() => {
-    if (!soundEnabled.ouch) return
+    if (!soundEnabled.ouch || !dropHitAudioRef.current) return
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const now = audioContext.currentTime
-      const duration = 0.22
-
-      // Tone (descending pitch)
-      const osc = audioContext.createOscillator()
-      const toneGain = audioContext.createGain()
-      osc.type = "triangle"
-      osc.frequency.setValueAtTime(620, now)
-      osc.frequency.exponentialRampToValueAtTime(160, now + duration)
-      toneGain.gain.setValueAtTime(0.0001, now)
-      toneGain.gain.exponentialRampToValueAtTime(0.5, now + 0.01)
-      toneGain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-
-      // Short noise burst for impact
-      const noiseBufferLen = Math.floor(0.1 * audioContext.sampleRate)
-      const noiseBuffer = audioContext.createBuffer(1, noiseBufferLen, audioContext.sampleRate)
-      const data = noiseBuffer.getChannelData(0)
-      for (let i = 0; i < noiseBufferLen; i++) {
-        const t = i / noiseBufferLen
-        data[i] = (Math.random() * 2 - 1) * (1 - t) * (1 - t)
-      }
-      const noise = audioContext.createBufferSource()
-      noise.buffer = noiseBuffer
-      const noiseFilter = audioContext.createBiquadFilter()
-      noiseFilter.type = "bandpass"
-      noiseFilter.frequency.setValueAtTime(800, now)
-      noiseFilter.Q.setValueAtTime(0.8, now)
-      const noiseGain = audioContext.createGain()
-      noiseGain.gain.setValueAtTime(0.0001, now)
-      noiseGain.gain.exponentialRampToValueAtTime(0.3, now + 0.005)
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12)
-
-      // Master
-      const master = audioContext.createGain()
-      master.gain.setValueAtTime(0.35, now)
-
-      // Connect
-      osc.connect(toneGain)
-      toneGain.connect(master)
-      noise.connect(noiseFilter)
-      noiseFilter.connect(noiseGain)
-      noiseGain.connect(master)
-      master.connect(audioContext.destination)
-
-      // Start/stop
-      osc.start(now)
-      noise.start(now)
-      osc.stop(now + duration)
-      noise.stop(now + 0.14)
+      // Reset to start and play instantly (no loading delay)
+      dropHitAudioRef.current.currentTime = 0
+      dropHitAudioRef.current.play().catch(() => { /* no-op */ })
     } catch {
-      // no-op (autoplay restrictions may block without prior user gesture)
+      // no-op
     }
-  }, [])
+  }, [soundEnabled])
 
   const playHeartCollectSound = useCallback(() => {
     if (!soundEnabled.heartCollect) return
@@ -568,35 +539,30 @@ export default function BaronWeb() {
   }, [soundEnabled])
 
   const playCoinCollectSound = useCallback(() => {
-    if (!soundEnabled.coinCollect) return
+    if (!soundEnabled.coinCollect || !coinCollectAudioRef.current) return
     try {
-      const audio = new Audio('/coin-collect-sound.wav')
-      audio.volume = 0.4 // Adjust volume as needed
-      audio.play().catch(() => { /* no-op */ })
+      coinCollectAudioRef.current.currentTime = 0
+      coinCollectAudioRef.current.play().catch(() => { /* no-op */ })
     } catch {
       // no-op
     }
   }, [soundEnabled])
 
   const playSuccessSound = useCallback(() => {
-    if (!soundEnabled.success) return
+    if (!soundEnabled.success || !flameTouchAudioRef.current) return
     try {
-      const audio = new Audio('/flame-touch-sound.mp3')
-      audio.volume = 0.5 // Adjust volume as needed
-      audio.play().catch(() => { /* no-op */ })
+      flameTouchAudioRef.current.currentTime = 0
+      flameTouchAudioRef.current.play().catch(() => { /* no-op */ })
     } catch {
       // no-op
     }
   }, [soundEnabled])
 
   const playLandSound = useCallback(() => {
-    if (!soundEnabled.land) return
+    if (!soundEnabled.land || !landAudioRef.current) return
     try {
-      const audio = new Audio('/land-sound.wav')
-      audio.volume = 0.3 // Adjust volume
-      audio.play().catch(() => {
-        // no-op (autoplay restrictions)
-      })
+      landAudioRef.current.currentTime = 0
+      landAudioRef.current.play().catch(() => { /* no-op */ })
     } catch {
       // no-op
     }
@@ -621,11 +587,10 @@ export default function BaronWeb() {
   }, [soundEnabled])
 
   const playLevelUpSound = useCallback(() => {
-    if (!soundEnabled.bgMusic) return
+    if (!soundEnabled.bgMusic || !levelUpAudioRef.current) return
     try {
-      const audio = new Audio('/level-up-sound.wav')
-      audio.volume = 0.6 // Adjust volume as needed
-      audio.play().catch(() => { /* no-op */ })
+      levelUpAudioRef.current.currentTime = 0
+      levelUpAudioRef.current.play().catch(() => { /* no-op */ })
     } catch {
       // no-op
     }
@@ -734,6 +699,80 @@ export default function BaronWeb() {
     }
   }, [])
 
+  // Preload ALL audio files for instant playback (0ms delay)
+  // Preload and initialize all audio on mount
+  useEffect(() => {
+    // Drop hit sound
+    const dropHitAudio = new Audio('/drop-hit-sound.mp3')
+    dropHitAudio.volume = 0.6
+    dropHitAudio.preload = 'auto'
+    dropHitAudio.load()
+    dropHitAudioRef.current = dropHitAudio
+
+    // Coin collect sound
+    const coinAudio = new Audio('/coin-collect-sound.wav')
+    coinAudio.volume = 0.4
+    coinAudio.preload = 'auto'
+    coinAudio.load()
+    coinCollectAudioRef.current = coinAudio
+
+    // Flame touch sound
+    const flameAudio = new Audio('/flame-touch-sound.mp3')
+    flameAudio.volume = 0.5
+    flameAudio.preload = 'auto'
+    flameAudio.load()
+    flameTouchAudioRef.current = flameAudio
+
+    // Land sound
+    const landAudio = new Audio('/land-sound.wav')
+    landAudio.volume = 0.3
+    landAudio.preload = 'auto'
+    landAudio.load()
+    landAudioRef.current = landAudio
+
+    // Level up sound
+    const levelUpAudio = new Audio('/level-up-sound.wav')
+    levelUpAudio.volume = 0.6
+    levelUpAudio.preload = 'auto'
+    levelUpAudio.load()
+    levelUpAudioRef.current = levelUpAudio
+
+    // Game over sound (already has ref, just preload it)
+    const gameOverAudio = new Audio('/game-over-sound.wav')
+    gameOverAudio.volume = 0.5
+    gameOverAudio.preload = 'auto'
+    gameOverAudio.load()
+    gameOverAudioRef.current = gameOverAudio
+
+    // Unlock audio on first user interaction (browser autoplay policy)
+    const unlockAudio = () => {
+      console.log('🔊 Unlocking audio...')
+      // Play and immediately pause each audio to unlock them
+      const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio]
+      audios.forEach(audio => {
+        audio.play().then(() => {
+          audio.pause()
+          audio.currentTime = 0
+        }).catch(() => { /* ignore */ })
+      })
+      // Remove listeners after first unlock
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('keydown', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
+
+    // Add event listeners for first interaction
+    document.addEventListener('click', unlockAudio, { once: true })
+    document.addEventListener('keydown', unlockAudio, { once: true })
+    document.addEventListener('touchstart', unlockAudio, { once: true })
+
+    return () => {
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('keydown', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
+  }, [])
+
   // Load coin images
   useEffect(() => {
     const coin1 = new Image()
@@ -813,9 +852,9 @@ export default function BaronWeb() {
   // Generate platforms (dynamic difficulty)
   const generatePlatforms = (startX: number, count = 10, startId = 1) => {
     const newPlatforms: Platform[] = []
-    const runnerHeight = 32 // Character height (named "runner")
-    const minSpacing = runnerHeight * 2 // 64px
-    const platformHeight = 8
+    const runnerHeight = 33 // Character height (named "runner")
+    const minSpacing = runnerHeight * 2 // 66px
+    const platformHeight = 6
 
     let currentX = startX
     for (let i = 0; i < count; i++) {
@@ -884,7 +923,7 @@ export default function BaronWeb() {
     for (let i = 1; i < newPlatforms.length; i++) {
       const current = newPlatforms[i]
       const previous = newPlatforms[i - 1]
-      const minVSpace = runnerHeight * 2 // Minimum vertical gap = 2x runner height (64px) - NEVER OVERRIDE
+      const minVSpace = runnerHeight * 2 // Minimum vertical gap = 2x runner height (66px) - NEVER OVERRIDE
       const pHeight = 8
       const horizontalOverlap = !(current.x > previous.x + previous.width || previous.x > current.x + current.width)
       if (horizontalOverlap) {
@@ -1034,7 +1073,7 @@ export default function BaronWeb() {
 
     // Instant gravity direction flip (disabled when dead)
     if (!st.isDead) {
-      st.gravityCurrentDir = -st.gravityCurrentDir // ±1 to ∓1
+      st.pullDirection = -st.pullDirection // ±1 to ∓1
       playVortexSound()
     }
   }, [isGameOver, isPlaying, isAIMode, playVortexSound])
@@ -1063,12 +1102,12 @@ export default function BaronWeb() {
     const platform5Items = getPlatformItems(5)
 
     const platforms: Platform[] = [
-      { x: 0, y: 160, width: pickRatioWidth(), height: 8, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
+      { x: 0, y: 317, width: pickRatioWidth() * 2, height: 6, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
       {
         x: 170,
         y: 100,
         width: pickRatioWidth(),
-        height: 8,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform2Items.hasFire,
@@ -1080,7 +1119,7 @@ export default function BaronWeb() {
         x: 330,
         y: 240,
         width: pickRatioWidth() * 1.4, // Make platform 3 40% longer
-        height: 8,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform3Items.hasFire,
@@ -1092,7 +1131,7 @@ export default function BaronWeb() {
         x: 480,
         y: 110,
         width: pickRatioWidth(),
-        height: 8,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform4Items.hasFire,
@@ -1104,7 +1143,7 @@ export default function BaronWeb() {
         x: 640,
         y: 200,
         width: pickRatioWidth(),
-        height: 8,
+        height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform5Items.hasFire,
@@ -1255,7 +1294,7 @@ export default function BaronWeb() {
 
       // Vertical: move away from p12 by a bit, clamped to bounds
       const extraGapY = 50
-      const platformHeight = 8
+      const platformHeight = 6
       const minY = TOP_BOUND + 64
       const maxY = BOTTOM_BOUND - 64
       const minMargin = 32 // keep some clearance from top/bottom
@@ -1268,12 +1307,12 @@ export default function BaronWeb() {
     gameStateRef.current = {
       player: {
         x: 20,
-        y: 140,
-        width: 42,
-        height: 42,
+        y: 273,
+        width: 44,
+        height: 44,
         velocityX: 0,
         velocityY: 0,
-        onGround: false,
+        onGround: true,
         wasOnGround: false,
         color: "#FF0000",
       },
@@ -1281,8 +1320,8 @@ export default function BaronWeb() {
       clouds,
       camera: { x: 0, y: 0 },
 
-      gravityBase: 0.357, // Reduced by 15% from 0.42
-      gravityCurrentDir: 1,
+      pullSpeed: 7.5, // Constant pull speed (87.5% stronger than original)
+      pullDirection: 1, // Start pulling down
 
       // runtime
       startTimeMs,
@@ -1295,10 +1334,10 @@ export default function BaronWeb() {
       invulnerableTime: 0,
       fireStateStartTime: 0,
       dropHitCount: 0,
-      dropHitStartTime: 0,
       isDead: false,
       deadStartTime: 0,
       level: 1,
+      lastLandTime: 0,
       checkpointFlag: undefined,
 
       hearts: [],
@@ -1480,7 +1519,7 @@ export default function BaronWeb() {
     const { player, platforms, clouds, camera } = st
 
     const now = performance.now()
-    const gravityAccel = st.gravityBase * st.gravityCurrentDir
+    // Linear pull system - no acceleration, just constant velocity
 
     // Elapsed time (seconds)
     const elapsedSec = (now - st.startTimeMs) / 1000
@@ -1580,16 +1619,16 @@ export default function BaronWeb() {
         
         if (needsFlip) {
           // Check direction: should we flip?
-          if (st.gravityCurrentDir > 0) {
+          if (st.pullDirection > 0) {
             // Gravity down: flip if platform is above us
             if (platformCenterY < playerCenterY - 40) {
-              st.gravityCurrentDir = -st.gravityCurrentDir
+              st.pullDirection = -st.pullDirection
               playVortexSound()
             }
           } else {
             // Gravity up: flip if platform is below us
             if (platformCenterY > playerCenterY + 40) {
-              st.gravityCurrentDir = -st.gravityCurrentDir
+              st.pullDirection = -st.pullDirection
               playVortexSound()
             }
           }
@@ -1613,22 +1652,25 @@ export default function BaronWeb() {
 
     // Jump (opposite of gravity direction)
     if ((keysRef.current.has("w") || keysRef.current.has("arrowup")) && player.onGround) {
-      player.velocityY = st.gravityCurrentDir > 0 ? -5 : 5
+      player.velocityY = st.pullDirection > 0 ? -5 : 5
       player.onGround = false
     }
 
-    // Dead state fall animation
+    // Dead state: slow vertical fall to stay visible for 2 seconds
     if (st.isDead) {
-      const deadElapsed = (now - st.deadStartTime) / 1000 // seconds since death
-      if (deadElapsed < 2.0) {
-        // Fall animation for 2 seconds
-        const fallSpeed = 8 + deadElapsed * 4 // Accelerating fall
-        player.velocityY = st.gravityCurrentDir > 0 ? fallSpeed : -fallSpeed
-        player.velocityX = 0 // Stop horizontal movement
-      }
+      // Keep horizontal position fixed (no auto-scroll)
+      player.velocityX = 0
+      
+      // Slow fall: constant slow downward movement to stay visible
+      // Fall at 2 pixels/frame so runner stays mostly on screen for 2 seconds
+      player.velocityY = 2 // Slow constant fall
     } else {
-      // Normal gravity integration
-      player.velocityY += gravityAccel
+      // Linear pull gravity (constant velocity, no acceleration)
+      if (!player.onGround) {
+        player.velocityY = st.pullSpeed * st.pullDirection
+      } else {
+        player.velocityY = 0 // Locked to platform when grounded
+      }
     }
 
     // Position
@@ -1658,12 +1700,6 @@ export default function BaronWeb() {
         // FLAME HEALS: Reduce drop damage by 1 state
         st.dropHitCount = Math.max(0, st.dropHitCount - 1)
         
-        // Only reset the 2-second window timer if fully healed back to Idle
-        if (st.dropHitCount === 0) {
-          st.dropHitStartTime = 0
-        }
-        // Otherwise, timer keeps running from the first drop in the sequence
-        
         // Mark flame as collected
         platform.hasFire = false
       }
@@ -1672,8 +1708,8 @@ export default function BaronWeb() {
       // DROP COLLISION - Damages 1 state + removes 1 life
       // ============================================================================
       // State progression: Idle → State 2 → State 3 → Dead
-      // Drops within 2-second window accumulate damage
-      // After 2 seconds, damage resets to State 2 (fresh sequence)
+      // Each drop increments damage state (no time window)
+      // States persist until changed by flame healing
       // ============================================================================
       if (!st.invulnerable && !st.isDead && checkDropCollision(player, platform)) {
         playOuchSound()
@@ -1683,18 +1719,34 @@ export default function BaronWeb() {
         
         const now = Date.now()
         
-        // Check if within 2-second window of first drop in sequence
-        if (st.dropHitStartTime > 0 && (now - st.dropHitStartTime) <= 2000) {
-          // Within window: increment damage state
-          st.dropHitCount++
-          // Timer keeps running from first drop
-        } else {
-          // Outside window or first drop: start new damage sequence
-          st.dropHitCount = 1
-          st.dropHitStartTime = now // Start 2-second window
+        // Simple increment: each drop = +1 damage state (no time window)
+        st.dropHitCount++
+        
+        console.log('💧 DROP HIT:', {
+          dropHitCount: st.dropHitCount,
+          newLives: newLives,
+          playerX: player.x,
+          playerY: player.y
+        })
+        
+        // Check for 3rd drop FIRST (always game over)
+        if (st.dropHitCount >= 3) {
+          console.log('💀 3RD DROP - ENTERING DEAD STATE')
+          // 3rd drop: GAME OVER after 2-second delay
+          st.isDead = true
+          st.deadStartTime = now
+          
+          // Wait 2 seconds to show DEAD state before game over modal
+          setTimeout(() => {
+            saveScoreToHistory(score)
+            setIsGameOver(true)
+            setIsPlaying(false)
+            playGameOverMusic()
+          }, 2000)
+          return
         }
         
-        // Check if game over
+        // Check if out of lives
         if (newLives <= 0) {
           // Out of lives: trigger death
           st.isDead = true
@@ -1710,27 +1762,9 @@ export default function BaronWeb() {
           return
         }
         
-        // Still have lives: check damage state
-        if (st.dropHitCount >= 3) {
-          // 3rd drop penalty: show DEAD state for 2 seconds
-          st.isDead = true
-          st.deadStartTime = now
-          
-          // Respawn after 2 seconds if lives remain
-          setTimeout(() => {
-            if (gameStateRef.current) {
-              gameStateRef.current.isDead = false
-              gameStateRef.current.dropHitCount = 0 // Reset to Idle after death penalty
-              gameStateRef.current.dropHitStartTime = 0
-              gameStateRef.current.invulnerable = true
-              gameStateRef.current.invulnerableTime = Date.now() + 2000
-            }
-          }, 2000)
-        } else {
-          // Normal drop hit: 2 seconds invulnerability
-          st.invulnerable = true
-          st.invulnerableTime = Date.now() + 2000
-        }
+        // Normal drop hit: 1 second invulnerability
+        st.invulnerable = true
+        st.invulnerableTime = Date.now() + 1000
         
         // Mark drop as collected
         platform.hasDrop = false
@@ -1754,14 +1788,19 @@ export default function BaronWeb() {
         const overlapBottom = platformBottom - player.y
         const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom)
 
-        const gravityPositive = st.gravityCurrentDir > 0
+        const gravityPositive = st.pullDirection > 0
 
         if (gravityPositive) {
           if (minOverlap === overlapTop && player.velocityY > 0) {
             player.y = platformTop - player.height
             player.velocityY = 0
             if (!player.wasOnGround) {
-              playLandSound() // Play landing sound
+              // Only play landing sound if enough time has passed (200ms cooldown)
+              const now = performance.now()
+              if (now - st.lastLandTime > 200) {
+                playLandSound()
+                st.lastLandTime = now
+              }
             }
             player.onGround = true
           } else if (minOverlap === overlapBottom && player.velocityY < 0) {
@@ -1779,7 +1818,12 @@ export default function BaronWeb() {
             player.y = platformBottom
             player.velocityY = 0
             if (!player.wasOnGround) {
-              playLandSound() // Play landing sound
+              // Only play landing sound if enough time has passed (200ms cooldown)
+              const now = performance.now()
+              if (now - st.lastLandTime > 200) {
+                playLandSound()
+                st.lastLandTime = now
+              }
             }
             player.onGround = true
           } else if (minOverlap === overlapTop && player.velocityY > 0) {
@@ -1887,8 +1931,8 @@ export default function BaronWeb() {
       }
     }
 
-    // World bounds: game over once 60% is outside
-    {
+    // World bounds: game over once 60% is outside (skip if in DEAD state)
+    if (!st.isDead) {
       const overTop = Math.max(0, TOP_BOUND - player.y)
       const overBottom = Math.max(0, player.y + player.height - BOTTOM_BOUND)
       const outside = Math.max(overTop, overBottom)
@@ -1904,10 +1948,12 @@ export default function BaronWeb() {
       }
     }
 
-    // Camera and auto-scroll
+    // Camera and auto-scroll (pause when dead to show DEAD state)
+    if (!st.isDead) {
+      player.x += st.gameSpeed
+    }
     st.camera.x = player.x - CANVAS_W / 3
     st.camera.y = 0
-    player.x += st.gameSpeed
   }, [
     isGameOver,
     isAIMode,
@@ -2131,7 +2177,7 @@ export default function BaronWeb() {
 
     const st = gameStateRef.current
     const { player, platforms, clouds, camera } = st
-    const effectiveDir = st.gravityCurrentDir
+    const effectiveDir = st.pullDirection
 
     // Determine current level based on player position
     const currentPlayerLevel = Math.floor(st.platformsPassed / 20) + 1
@@ -2241,16 +2287,8 @@ export default function BaronWeb() {
             dropX = platform.x + platform.width - dropWidth - 5
           }
           
-          // If drop is below platform, flip it vertically
-          if (platform.dropDirection === 'down') {
-            ctx.save()
-            ctx.translate(dropX + dropWidth / 2, dropY + dropHeight / 2)
-            ctx.scale(1, -1)
-            ctx.drawImage(dropImageRef.current, -dropWidth / 2, -dropHeight / 2, dropWidth, dropHeight)
-            ctx.restore()
-          } else {
-            ctx.drawImage(dropImageRef.current, dropX, dropY, dropWidth, dropHeight)
-          }
+          // Render drop normally (not flipped) for both above and below platform
+          ctx.drawImage(dropImageRef.current, dropX, dropY, dropWidth, dropHeight)
         }
       }
     })
@@ -2325,10 +2363,22 @@ export default function BaronWeb() {
     const showFireState = now - st.fireStateStartTime < 1800 && !st.isDead
 
     // Dead state rendering
-    if (st.isDead && deadImageRef.current) {
+    if (st.isDead) {
+      console.log('🔴 DEAD STATE RENDERING:', {
+        isDead: st.isDead,
+        playerX: player.x,
+        playerY: player.y,
+        cameraX: camera.x,
+        deadImageLoaded: !!deadImageRef.current,
+        characterImageLoaded: !!characterImageRef.current
+      })
+      
       ctx.save()
       
-      if (st.gravityCurrentDir < 0) {
+      // Apply dead state filter (10% saturation, 50% brightness)
+      ctx.filter = 'saturate(0.1) brightness(0.5)'
+      
+      if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
         ctx.translate(-player.width / 2, -player.height / 2)
@@ -2336,7 +2386,18 @@ export default function BaronWeb() {
         ctx.translate(Math.round(player.x), Math.round(player.y))
       }
       
-      ctx.drawImage(deadImageRef.current, 0, 0, player.width, player.height)
+      // Use DEAD.svg if loaded, otherwise fallback to normal character
+      if (deadImageRef.current) {
+        ctx.drawImage(deadImageRef.current, 0, 0, player.width, player.height)
+      } else if (characterImageRef.current) {
+        // Fallback: use first frame of normal character with dead filter
+        ctx.drawImage(characterImageRef.current[0], 0, 0, player.width, player.height)
+      } else {
+        // Last resort fallback: draw a red rectangle
+        ctx.fillStyle = "#8B0000"
+        ctx.fillRect(0, 0, player.width, player.height)
+      }
+      
       ctx.restore()
     } else if (showFireState && fireStateImageRef.current) {
       const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3) // Back to 3 frames to match available images
@@ -2375,7 +2436,7 @@ export default function BaronWeb() {
         console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
       }
       
-      if (st.gravityCurrentDir < 0) {
+      if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
         ctx.translate(-player.width / 2, -player.height / 2)
@@ -2424,7 +2485,7 @@ export default function BaronWeb() {
         console.log(`STATE 4 (Dead): saturation=${saturation}, brightness=${brightness}`)
       }
       
-      if (st.gravityCurrentDir < 0) {
+      if (st.pullDirection < 0) {
         ctx.translate(Math.round(player.x + player.width / 2), Math.round(player.y + player.height / 2))
         ctx.scale(1, -1)
         ctx.translate(-player.width / 2, -player.height / 2)
@@ -2489,7 +2550,9 @@ export default function BaronWeb() {
   }, [countdown, initializeGame])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-2">
+    <div className="flex flex-row items-start justify-center min-h-screen bg-gray-100 p-2 gap-4">
+      {/* Main Game Area */}
+      <div className="flex flex-col items-center">
       <BrandHeader 
         showPlatformNumbers={showPlatformNumbers} 
         setShowPlatformNumbers={setShowPlatformNumbers}
@@ -2562,10 +2625,10 @@ export default function BaronWeb() {
           <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
             <div className="text-center">
               <div
-                className="text-6xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
+                className="text-4xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
                 style={{ fontFamily: "Rethink Sans, sans-serif" }}
               >
-                {countdown}
+                {countdown === 'READY' ? 'Ready?' : countdown}
               </div>
             </div>
           </div>
@@ -2668,6 +2731,7 @@ export default function BaronWeb() {
         </div>
       )}
 
+      </div>
     </div>
   )
 }
