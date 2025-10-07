@@ -1659,14 +1659,14 @@ export default function BaronWeb() {
       player.onGround = false
     }
 
-    // Dead state: slow vertical fall to stay visible for 2 seconds
+    // Dead state: fall through platforms off-screen
     if (st.isDead) {
       // Keep horizontal position fixed (no auto-scroll)
       player.velocityX = 0
       
-      // Slow fall: constant slow downward movement to stay visible
-      // Fall at 2 pixels/frame so runner stays mostly on screen for 2 seconds
-      player.velocityY = 2 // Slow constant fall
+      // Fast fall: constant downward movement to fall off-screen
+      // Fall at 10 pixels/frame (640px canvas / 2 seconds / 60fps ≈ 5-10 px/frame)
+      player.velocityY = 10 // Fast constant fall downward
     } else {
       // Linear pull gravity (constant velocity, no acceleration)
       if (!player.onGround) {
@@ -1680,10 +1680,17 @@ export default function BaronWeb() {
     player.x += player.velocityX
     player.y += player.velocityY
 
-    // Platform collisions and scoring
-    player.wasOnGround = player.onGround
-    player.onGround = false
+    // Platform collisions and scoring (skip when dead)
+    if (!st.isDead) {
+      player.wasOnGround = player.onGround
+      player.onGround = false
+    }
+    
     for (const platform of st.platforms) {
+      // Skip all platform interactions when dead
+      if (st.isDead) {
+        continue
+      }
       // ============================================================================
       // FLAME COLLISION - Heals 1 damage state + gives 1 life
       // ============================================================================
@@ -1725,6 +1732,8 @@ export default function BaronWeb() {
         // Simple increment: each drop = +1 damage state (no time window)
         st.dropHitCount++
         
+        // Mark drop as collected IMMEDIATELY (before any early returns)
+        platform.hasDrop = false
         
         // Check for 3rd drop FIRST (always game over)
         if (st.dropHitCount >= 3) {
@@ -1762,9 +1771,6 @@ export default function BaronWeb() {
         // Normal drop hit: 1 second invulnerability
         st.invulnerable = true
         st.invulnerableTime = Date.now() + 1000
-        
-        // Mark drop as collected
-        platform.hasDrop = false
       }
 
       // Platform rect with tiny pavements
@@ -2101,14 +2107,43 @@ export default function BaronWeb() {
     const { player, platforms, clouds, camera } = st
     const effectiveDir = st.pullDirection
 
-    // Determine current level based on player position
-    const currentPlayerLevel = Math.floor(st.platformsPassed / 20) + 1
-
-    // Background with level-based color
-    const backgroundColor = getLevelBackgroundColor(currentPlayerLevel)
-    ctx.fillStyle = backgroundColor
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // Background with level-based colors - draw segments between boundaries
     ctx.imageSmoothingEnabled = false
+    
+    // Sort boundaries by x position
+    const sortedBoundaries = [...st.levelBoundaries].sort((a, b) => a.x - b.x)
+    
+    // Draw background segments
+    let startX = camera.x - 100
+    let currentLevel = Math.floor(st.platformsPassed / 20) + 1
+    
+    // If we have boundaries, draw colored segments
+    if (sortedBoundaries.length > 0) {
+      // Draw segment before first boundary
+      const firstBoundary = sortedBoundaries[0]
+      const levelBeforeFirst = firstBoundary.level - 1
+      ctx.fillStyle = getLevelBackgroundColor(levelBeforeFirst)
+      const firstSegmentWidth = Math.max(0, firstBoundary.x - camera.x)
+      ctx.fillRect(0, 0, firstSegmentWidth, canvas.height)
+      
+      // Draw segments between boundaries
+      for (let i = 0; i < sortedBoundaries.length; i++) {
+        const boundary = sortedBoundaries[i]
+        const nextBoundary = sortedBoundaries[i + 1]
+        
+        ctx.fillStyle = getLevelBackgroundColor(boundary.level)
+        const segmentStartX = boundary.x - camera.x
+        const segmentWidth = nextBoundary 
+          ? (nextBoundary.x - boundary.x)
+          : (canvas.width - segmentStartX + 100)
+        
+        ctx.fillRect(segmentStartX, 0, segmentWidth, canvas.height)
+      }
+    } else {
+      // No boundaries yet, use current level color
+      ctx.fillStyle = getLevelBackgroundColor(currentLevel)
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
 
     // Camera
     ctx.save()
@@ -2309,11 +2344,6 @@ export default function BaronWeb() {
         ctx.fillRect(0, 0, player.width, player.height)
       }
       
-      // Fast overlay for dead state effect (instead of expensive filter)
-      ctx.globalAlpha = 0.4
-      ctx.fillStyle = "#000000"
-      ctx.fillRect(0, 0, player.width, player.height)
-      ctx.globalAlpha = 1.0
       
       ctx.restore()
     } else if (showFireState && fireStateImageRef.current) {
@@ -2327,23 +2357,19 @@ export default function BaronWeb() {
       } else {
         ctx.translate(Math.round(player.x), Math.round(player.y))
       }
-      ctx.drawImage(fireStateImageRef.current[idx], 0, 0, player.width, player.height)
       
-      // Fast overlay for damage states (instead of expensive CSS filters)
+      // Apply damage state filter
       if (st.dropHitCount === 1) {
-        // State 2: Slightly darker
-        ctx.globalAlpha = 0.2
-        ctx.fillStyle = "#000000"
-        ctx.fillRect(0, 0, player.width, player.height)
-        ctx.globalAlpha = 1.0
+        ctx.filter = 'saturate(0.6) brightness(0.8)'
       } else if (st.dropHitCount === 2) {
-        // State 3: Much darker (grayscale effect)
-        ctx.globalAlpha = 0.5
-        ctx.fillStyle = "#000000"
-        ctx.fillRect(0, 0, player.width, player.height)
-        ctx.globalAlpha = 1.0
+        ctx.filter = 'saturate(0) brightness(0.5)'
+      } else {
+        ctx.filter = 'saturate(1.2) brightness(1)'
       }
       
+      ctx.drawImage(fireStateImageRef.current[idx], 0, 0, player.width, player.height)
+      
+      ctx.filter = 'none'
       ctx.restore()
     } else if (characterImageRef.current) {
       if (Date.now() - lastFrameTimeRef.current > 100) {
@@ -2359,23 +2385,19 @@ export default function BaronWeb() {
       } else {
         ctx.translate(Math.round(player.x), Math.round(player.y))
       }
-      ctx.drawImage(characterImageRef.current[currentFrame], 0, 0, player.width, player.height)
       
-      // Fast overlay for damage states (instead of expensive CSS filters)
+      // Apply damage state filter
       if (st.dropHitCount === 1) {
-        // State 2: Slightly darker
-        ctx.globalAlpha = 0.2
-        ctx.fillStyle = "#000000"
-        ctx.fillRect(0, 0, player.width, player.height)
-        ctx.globalAlpha = 1.0
+        ctx.filter = 'saturate(0.6) brightness(0.8)'
       } else if (st.dropHitCount === 2) {
-        // State 3: Much darker (grayscale effect)
-        ctx.globalAlpha = 0.5
-        ctx.fillStyle = "#000000"
-        ctx.fillRect(0, 0, player.width, player.height)
-        ctx.globalAlpha = 1.0
+        ctx.filter = 'saturate(0) brightness(0.5)'
+      } else {
+        ctx.filter = 'saturate(1.2) brightness(1)'
       }
       
+      ctx.drawImage(characterImageRef.current[currentFrame], 0, 0, player.width, player.height)
+      
+      ctx.filter = 'none'
       ctx.restore()
     } else {
       ctx.fillStyle = player.color
