@@ -961,8 +961,8 @@ export default function BaronWeb() {
   // Generate coins on platforms with collision avoidance
   const generateCoinsForPlatforms = (platforms: Platform[]) => {
     const coins: Coin[] = []
-    const COIN_W = 22
-    const COIN_H = 22
+    const COIN_W = 26
+    const COIN_H = 26
 
     platforms.forEach((platform) => {
       // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
@@ -1119,8 +1119,8 @@ export default function BaronWeb() {
     // Add extra coins to platform 4 (index 3)
     if (platforms.length >= 4) {
       const platform4 = platforms[3]
-      const COIN_W = 22
-      const COIN_H = 22
+      const COIN_W = 26
+      const COIN_H = 26
 
       // Add 3 coins on platform 4 with collision avoidance
       for (let i = 0; i < 3; i++) {
@@ -1156,8 +1156,8 @@ export default function BaronWeb() {
     // Add extra coins to platform 2 (index 1)
     if (platforms.length >= 2) {
       const platform2 = platforms[1]
-      const COIN_W = 22
-      const COIN_H = 22
+      const COIN_W = 26
+      const COIN_H = 26
 
       // Add 5 coins on platform 2 with collision avoidance
       for (let i = 0; i < 5; i++) {
@@ -1195,8 +1195,8 @@ export default function BaronWeb() {
     // Add extra coins to platform 7 (index 6)
     if (platforms.length >= 7) {
       const platform7 = platforms[6]
-      const COIN_W = 22
-      const COIN_H = 22
+      const COIN_W = 26
+      const COIN_H = 26
 
       // Add 6 coins on platform 7 with collision avoidance
       for (let i = 0; i < 6; i++) {
