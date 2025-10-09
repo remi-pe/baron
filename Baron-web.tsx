@@ -2519,7 +2519,7 @@ export default function BaronWeb() {
       render()
       // Update frame counter every 2 frames for smooth platform number movement
       setFrameCounter(prev => (prev + 1) % 2)
-      animationFrameRef.current = requestAnimationFrame(gameLoop)
+      animationFrameRef.current = requestAnimationFrame((nextTime) => gameLoop(nextTime))
     }
   }, [isPlaying, isGameOver, updateGame, render])
 
