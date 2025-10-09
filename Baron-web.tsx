@@ -1176,6 +1176,8 @@ export default function BaronWeb() {
     // Instant gravity direction flip (disabled when dead)
     if (!st.isDead) {
       st.pullDirection = -st.pullDirection // ±1 to ∓1
+      // Instantly set velocity to strong pull in new direction
+      st.player.velocityY = st.pullSpeed * st.pullDirection
       playVortexSound()
     }
   }, [isGameOver, isPlaying, isAIMode, playVortexSound])
@@ -1426,7 +1428,7 @@ export default function BaronWeb() {
       clouds,
       camera: { x: 0, y: 0 },
 
-      pullSpeed: 7.5, // Constant pull speed (87.5% stronger than original)
+      pullSpeed: 9, // Instant pull speed when flipping gravity
       pullDirection: 1, // Start pulling down
 
       // runtime
@@ -1705,12 +1707,16 @@ export default function BaronWeb() {
             // Gravity down: flip if platform is above us
             if (platformCenterY < playerCenterY - 40) {
               st.pullDirection = -st.pullDirection
+              // Instantly set velocity to strong pull in new direction
+              player.velocityY = st.pullSpeed * st.pullDirection
               playVortexSound()
             }
           } else {
             // Gravity up: flip if platform is below us
             if (platformCenterY > playerCenterY + 40) {
               st.pullDirection = -st.pullDirection
+              // Instantly set velocity to strong pull in new direction
+              player.velocityY = st.pullSpeed * st.pullDirection
               playVortexSound()
             }
           }
@@ -1744,12 +1750,16 @@ export default function BaronWeb() {
       player.velocityX = 0
       
       // Fast fall: constant downward movement to fall off-screen
-      // Fall at 10 pixels/frame (640px canvas / 2 seconds / 60fps ≈ 5-10 px/frame)
-      player.velocityY = 10 // Fast constant fall downward
+      player.velocityY = 7 // Fast constant fall downward
     } else {
-      // Linear pull gravity (constant velocity, no acceleration)
+      // Hybrid pull gravity: strong base pull + accumulating acceleration
       if (!player.onGround) {
-        player.velocityY = st.pullSpeed * st.pullDirection
+        // If just left ground, start with strong pull velocity
+        if (player.wasOnGround) {
+          player.velocityY = st.pullSpeed * st.pullDirection
+        }
+        // Add acceleration each frame (High gravity: 0.75)
+        player.velocityY += 0.75 * st.pullDirection
       } else {
         player.velocityY = 0 // Locked to platform when grounded
       }
@@ -2125,31 +2135,51 @@ export default function BaronWeb() {
     // Visual heights (collision uses collisionHeight parameter)
     const grassH = 8
     const dirtH = 14
+    const topRadius = 8 // Border radius for grass (top)
+    const bottomRadius = 4 // Border radius for dirt (bottom)
 
-    // Grass cap (simple gradient, no patches or fringe)
+    // Grass cap (simple gradient, no patches or fringe) - 8px rounded corners on top
     const grassTopY = y - grassH
     const grassGrad = ctx.createLinearGradient(0, grassTopY, 0, y)
     grassGrad.addColorStop(0, "#d7ff6a")
     grassGrad.addColorStop(1, "#b6ef53")
     ctx.fillStyle = grassGrad
-    ctx.fillRect(x, grassTopY, w, grassH)
+    ctx.beginPath()
+    ctx.moveTo(x + topRadius, grassTopY)
+    ctx.lineTo(x + w - topRadius, grassTopY)
+    ctx.arcTo(x + w, grassTopY, x + w, grassTopY + topRadius, topRadius)
+    ctx.lineTo(x + w, y)
+    ctx.lineTo(x, y)
+    ctx.lineTo(x, grassTopY + topRadius)
+    ctx.arcTo(x, grassTopY, x + topRadius, grassTopY, topRadius)
+    ctx.closePath()
+    ctx.fill()
 
-    // Dirt body (simple gradient, no waves or pebbles)
+    // Dirt body (simple gradient, no waves or pebbles) - 4px rounded corners on bottom
     const dirtTopY = y
     const dirtGrad = ctx.createLinearGradient(0, dirtTopY, 0, dirtTopY + dirtH)
     dirtGrad.addColorStop(0, "#bf6b32")
     dirtGrad.addColorStop(1, "#8a421f")
     ctx.fillStyle = dirtGrad
-    ctx.fillRect(x, dirtTopY, w, dirtH)
+    ctx.beginPath()
+    ctx.moveTo(x, dirtTopY)
+    ctx.lineTo(x + w, dirtTopY)
+    ctx.lineTo(x + w, dirtTopY + dirtH - bottomRadius)
+    ctx.arcTo(x + w, dirtTopY + dirtH, x + w - bottomRadius, dirtTopY + dirtH, bottomRadius)
+    ctx.lineTo(x + bottomRadius, dirtTopY + dirtH)
+    ctx.arcTo(x, dirtTopY + dirtH, x, dirtTopY + dirtH - bottomRadius, bottomRadius)
+    ctx.lineTo(x, dirtTopY)
+    ctx.closePath()
+    ctx.fill()
 
-    // Simple highlight line at top of grass (optional, minimal cost)
+    // Simple highlight line at top of grass (optional, minimal cost) - follows 8px rounded corner
     ctx.save()
     ctx.globalAlpha = 0.3
     ctx.strokeStyle = "#f0ffb0"
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(x + 0.5, grassTopY + 0.5)
-    ctx.lineTo(x + w - 0.5, grassTopY + 0.5)
+    ctx.moveTo(x + topRadius, grassTopY + 0.5)
+    ctx.lineTo(x + w - topRadius, grassTopY + 0.5)
     ctx.stroke()
     ctx.restore()
   }
@@ -2598,12 +2628,11 @@ export default function BaronWeb() {
       {countdown !== null && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
           <div className="text-center">
-            <div
-              className="text-4xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
-              style={{ fontFamily: "Rethink Sans, sans-serif" }}
-            >
-              {countdown === 'READY' ? 'Ready?' : countdown}
-            </div>
+            <img 
+              src="/ready-1.svg" 
+              alt="Ready" 
+              className="w-64 h-auto select-none animate-pulse"
+            />
           </div>
         </div>
       )}
