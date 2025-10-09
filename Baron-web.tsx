@@ -1761,8 +1761,8 @@ export default function BaronWeb() {
         if (player.wasOnGround) {
           player.velocityY = st.pullSpeed * st.pullDirection
         }
-        // Add acceleration each frame (High gravity: 0.75)
-        player.velocityY += 0.75 * st.pullDirection * deltaMultiplier
+        // Add acceleration each frame (Reduced gravity: 0.60)
+        player.velocityY += 0.60 * st.pullDirection * deltaMultiplier
       } else {
         player.velocityY = 0 // Locked to platform when grounded
       }
