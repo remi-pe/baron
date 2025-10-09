@@ -1912,8 +1912,10 @@ export default function BaronWeb() {
         if (gravityPositive) {
           if (minOverlap === overlapTop && player.velocityY > 0) {
             player.y = platformTop - player.height
+            const wasFalling = player.velocityY > 0 // Check velocity before resetting
             player.velocityY = 0
-            if (!player.wasOnGround) {
+            if (!player.wasOnGround && wasFalling) {
+              // Only play landing sound when falling onto platform (not walking)
               // Only play landing sound if enough time has passed (200ms cooldown)
               const now = performance.now()
               if (now - st.lastLandTime > 200) {
@@ -1935,8 +1937,10 @@ export default function BaronWeb() {
         } else {
           if (minOverlap === overlapBottom && player.velocityY < 0) {
             player.y = platformBottom
+            const wasFalling = player.velocityY < 0 // Check velocity before resetting
             player.velocityY = 0
-            if (!player.wasOnGround) {
+            if (!player.wasOnGround && wasFalling) {
+              // Only play landing sound when falling onto platform (not walking)
               // Only play landing sound if enough time has passed (200ms cooldown)
               const now = performance.now()
               if (now - st.lastLandTime > 200) {
