@@ -2527,7 +2527,7 @@ export default function BaronWeb() {
   useEffect(() => {
     if (isPlaying && !isGameOver) {
       lastGameTimeRef.current = performance.now() // Reset time reference
-      animationFrameRef.current = requestAnimationFrame(gameLoop)
+      animationFrameRef.current = requestAnimationFrame((time) => gameLoop(time))
     }
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
