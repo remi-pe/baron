@@ -578,6 +578,24 @@ export default function BaronWeb() {
     }
   }, [soundEnabled])
 
+  const stopBackgroundMusic = useCallback(() => {
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.pause()
+      backgroundMusicRef.current.currentTime = 0
+    }
+  }, [])
+
+  const playBackgroundMusic = useCallback(() => {
+    if (!soundEnabled.bgMusic || !backgroundMusicRef.current) return
+    try {
+      backgroundMusicRef.current.currentTime = 0
+      backgroundMusicRef.current.loop = true
+      backgroundMusicRef.current.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
+  }, [soundEnabled])
+
   const playGameOverMusic = useCallback(() => {
     if (!soundEnabled.gameOver) return
     try {
@@ -597,25 +615,7 @@ export default function BaronWeb() {
     } catch {
       // no-op
     }
-  }, [soundEnabled])
-
-  const playBackgroundMusic = useCallback(() => {
-    if (!soundEnabled.bgMusic || !backgroundMusicRef.current) return
-    try {
-      backgroundMusicRef.current.currentTime = 0
-      backgroundMusicRef.current.loop = true
-      backgroundMusicRef.current.play().catch(() => { /* no-op */ })
-    } catch {
-      // no-op
-    }
-  }, [soundEnabled])
-
-  const stopBackgroundMusic = useCallback(() => {
-    if (backgroundMusicRef.current) {
-      backgroundMusicRef.current.pause()
-      backgroundMusicRef.current.currentTime = 0
-    }
-  }, [])
+  }, [soundEnabled, stopBackgroundMusic])
 
   const playLevelUpSound = useCallback(() => {
     if (!soundEnabled.bgMusic || !levelUpAudioRef.current) return
