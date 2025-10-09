@@ -54,6 +54,7 @@ interface Cloud {
   width: number
   height: number
   opacity: number
+  type: 1 | 2 | 3 // 1 = cloud.svg, 2 = CLOUD_2.svg, 3 = CLOUD_3.svg
 }
 
 
@@ -126,7 +127,6 @@ function BrandHeader({
   soundEnabled: {
     vortex: boolean
     ouch: boolean
-    heartCollect: boolean
     coinCollect: boolean
     success: boolean
     land: boolean
@@ -279,7 +279,7 @@ export default function BaronWeb() {
   const characterImageRef = useRef<HTMLImageElement[] | null>(null)
   const fireStateImageRef = useRef<HTMLImageElement[] | null>(null)
   const deadImageRef = useRef<HTMLImageElement | null>(null)
-  const cloudImageRef = useRef<HTMLImageElement>()
+  const cloudImageRef = useRef<HTMLImageElement[]>()
   const fireImageRef = useRef<HTMLImageElement[]>()
   const dropImageRef = useRef<HTMLImageElement>()
   const coinImageRef = useRef<HTMLImageElement[] | null>(null)
@@ -341,17 +341,26 @@ export default function BaronWeb() {
     }
   }, [])
 
-  // Load Rethink Sans font
+  // Load Rethink Sans and Instrument Sans fonts
   useEffect(() => {
-    const link = document.createElement("link")
-    link.href =
+    const rethinkLink = document.createElement("link")
+    rethinkLink.href =
       "https://fonts.googleapis.com/css2?family=Rethink+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&display=swap"
-    link.rel = "stylesheet"
-    document.head.appendChild(link)
+    rethinkLink.rel = "stylesheet"
+    document.head.appendChild(rethinkLink)
+
+    const instrumentLink = document.createElement("link")
+    instrumentLink.href =
+      "https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap"
+    instrumentLink.rel = "stylesheet"
+    document.head.appendChild(instrumentLink)
 
     return () => {
-      if (document.head.contains(link)) {
-        document.head.removeChild(link)
+      if (document.head.contains(rethinkLink)) {
+        document.head.removeChild(rethinkLink)
+      }
+      if (document.head.contains(instrumentLink)) {
+        document.head.removeChild(instrumentLink)
       }
     }
   }, [])
@@ -487,7 +496,7 @@ export default function BaronWeb() {
   }, [soundEnabled])
 
   const playHeartCollectSound = useCallback(() => {
-    if (!soundEnabled.heartCollect) return
+    if (!soundEnabled.coinCollect) return
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       const ac = new AudioCtx()
@@ -618,32 +627,35 @@ export default function BaronWeb() {
   }, [])
 
   // Load fire state images (hurt animation)
+  // Fire state images removed - F1, F2, F3 deleted (using character states instead)
   useEffect(() => {
-    const fire1 = new Image()
-    const fire2 = new Image()
-    const fire3 = new Image()
-    fire1.crossOrigin = "anonymous"
-    fire2.crossOrigin = "anonymous"
-    fire3.crossOrigin = "anonymous"
-    fire1.src = "/F1.svg"
-    fire2.src = "/F2.svg"
-    fire3.src = "/F3.svg"
+    // Placeholder for future fire state implementation
+  }, [])
+
+  // Load cloud images
+  useEffect(() => {
+    const cloud1 = new Image()
+    const cloud2 = new Image()
+    const cloud3 = new Image()
+    cloud1.crossOrigin = "anonymous"
+    cloud2.crossOrigin = "anonymous"
+    cloud3.crossOrigin = "anonymous"
+    cloud1.src = "/cloud.svg"
+    cloud2.src = "/CLOUD_2.svg"
+    cloud3.src = "/CLOUD_3.svg"
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 3) fireStateImageRef.current = [fire1, fire2, fire3]
+      if (loaded === 3) {
+        cloudImageRef.current = [cloud1, cloud2, cloud3]
+      }
     }
-    fire1.onload = onLoad
-    fire2.onload = onLoad
-    fire3.onload = onLoad
-  }, [])
-
-  // Load cloud image
-  useEffect(() => {
-    const cloudImg = new Image()
-    cloudImg.crossOrigin = "anonymous"
-    cloudImg.src = "/cloud.svg"
-    cloudImg.onload = () => (cloudImageRef.current = cloudImg)
+    cloud1.onload = onLoad
+    cloud2.onload = onLoad
+    cloud3.onload = onLoad
+    cloud1.onerror = (e) => console.error("Failed to load cloud.svg", e)
+    cloud2.onerror = (e) => console.error("Failed to load CLOUD_2.svg", e)
+    cloud3.onerror = (e) => console.error("Failed to load CLOUD_3.svg", e)
   }, [])
 
   // Load dead image
@@ -670,10 +682,14 @@ export default function BaronWeb() {
     let loaded = 0
     const onLoad = () => {
       loaded++
-      if (loaded === 2) fireImageRef.current = [fire1, fire2]
+      if (loaded === 2) {
+        fireImageRef.current = [fire1, fire2]
+      }
     }
     fire1.onload = onLoad
     fire2.onload = onLoad
+    fire1.onerror = (e) => console.error("Failed to load fire_1.svg", e)
+    fire2.onerror = (e) => console.error("Failed to load fire_2.svg", e)
   }, [])
 
   // Load drop image
@@ -788,51 +804,83 @@ export default function BaronWeb() {
   const generateClouds = (startX: number, count = 12) => {
     const newClouds: Cloud[] = []
     for (let i = 0; i < count; i++) {
-      const baseScale = 1.6 + gameRandom.next() * 0.4
-      const bump = 1.2 + gameRandom.next() * 0.2 // +20% to +40%
-      const sizeMultiplier = baseScale * bump
+      // First cloud in each batch is type 3 (one per level), rest are 50/50 type 1 and 2
+      let cloudType: 1 | 2 | 3
+      if (i === 0) {
+        cloudType = 3 // First cloud is always CLOUD_3 (one per level)
+      } else {
+        cloudType = gameRandom.next() < 0.5 ? 1 : 2 // 50/50 split for the rest
+      }
+
+      let finalSize: number
+      
+      if (cloudType === 3) {
+        // CLOUD_3 always has the same fixed size (10% bigger than base)
+        finalSize = 132
+      } else {
+        // Other clouds get random sizes
+        const baseScale = 1.6 + gameRandom.next() * 0.4
+        const bump = 1.2 + gameRandom.next() * 0.2 // +20% to +40%
+        let sizeMultiplier = baseScale * bump
+
+        // For CLOUD_2 only, randomly apply size variation: same (1.0), larger (1.3), or smaller (0.7)
+        if (cloudType === 2) {
+          const sizeVariations = [1.0, 1.3, 0.7]
+          const randomVariation = sizeVariations[Math.floor(gameRandom.next() * 3)]
+          sizeMultiplier *= randomVariation
+        }
+
+        // Use one base size and maintain aspect ratio (width:height = 1:1)
+        const baseSize = 60 + gameRandom.next() * 40 // Random base size 60-100
+        finalSize = baseSize * sizeMultiplier
+      }
 
       newClouds.push({
         x: startX + i * (50 + gameRandom.next() * 80),
         y: 20 + gameRandom.next() * 140,
-        width: (40 + gameRandom.next() * 50) * sizeMultiplier,
-        height: (25 + gameRandom.next() * 35) * sizeMultiplier,
+        width: finalSize,
+        height: finalSize, // Maintain 1:1 aspect ratio (square)
         opacity: 0.25 + gameRandom.next() * 0.4,
+        type: cloudType,
       })
     }
     return newClouds
   }
 
-  // Fixed item placement pattern for platforms 1-25
+  // Fixed item placement pattern for platforms (repeating cycle of 25)
+  // Pattern maintains: 20% flames, 44% drops, 36% nothing
   const getPlatformItems = (platformId: number) => {
-    const itemPattern: { [key: number]: { hasFire: boolean; hasDrop: boolean; dropDirection: 'up' | 'down' } } = {
-      1: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
-      2: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
-      3: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
-      4: { hasFire: false, hasDrop: true, dropDirection: 'down' },       // drop (down)
-      5: { hasFire: false, hasDrop: true, dropDirection: 'up' },         // drop (up)
-      6: { hasFire: false, hasDrop: false, dropDirection: 'down' },      // nothing
-      7: { hasFire: true, hasDrop: false, dropDirection: 'down' },       // flame (down)
-      8: { hasFire: false, hasDrop: true, dropDirection: 'up' },         // drop (up)
-      9: { hasFire: false, hasDrop: true, dropDirection: 'down' },       // drop (down)
-      10: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
-      11: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
-      12: { hasFire: true, hasDrop: false, dropDirection: 'down' },      // flame (down)
-      13: { hasFire: true, hasDrop: false, dropDirection: 'down' },      // flame (down)
-      14: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
-      15: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
-      16: { hasFire: true, hasDrop: false, dropDirection: 'up' },        // flame (up)
-      17: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
-      18: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
-      19: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
-      20: { hasFire: false, hasDrop: true, dropDirection: 'up' },        // drop (up)
-      21: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
-      22: { hasFire: true, hasDrop: false, dropDirection: 'up' },        // flame (up)
-      23: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
-      24: { hasFire: false, hasDrop: true, dropDirection: 'down' },      // drop (down)
-      25: { hasFire: false, hasDrop: false, dropDirection: 'down' },     // nothing
-    }
-    return itemPattern[platformId] || { hasFire: false, hasDrop: false, dropDirection: 'down' }
+    const basePattern: { hasFire: boolean; hasDrop: boolean; dropDirection: 'up' | 'down' }[] = [
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 1: nothing
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 2: nothing
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 3: nothing
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 4: drop (down)
+      { hasFire: false, hasDrop: true, dropDirection: 'up' },         // 5: drop (up)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 6: nothing
+      { hasFire: true, hasDrop: false, dropDirection: 'down' },       // 7: flame (down)
+      { hasFire: false, hasDrop: true, dropDirection: 'up' },         // 8: drop (up)
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 9: drop (down)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 10: nothing
+      { hasFire: false, hasDrop: true, dropDirection: 'up' },         // 11: drop (up)
+      { hasFire: true, hasDrop: false, dropDirection: 'down' },       // 12: flame (down)
+      { hasFire: true, hasDrop: false, dropDirection: 'down' },       // 13: flame (down)
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 14: drop (down)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 15: nothing
+      { hasFire: true, hasDrop: false, dropDirection: 'up' },         // 16: flame (up)
+      { hasFire: false, hasDrop: true, dropDirection: 'up' },         // 17: drop (up)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 18: nothing
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 19: drop (down)
+      { hasFire: false, hasDrop: true, dropDirection: 'up' },         // 20: drop (up)
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 21: drop (down)
+      { hasFire: true, hasDrop: false, dropDirection: 'up' },         // 22: flame (up)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 23: nothing
+      { hasFire: false, hasDrop: true, dropDirection: 'down' },       // 24: drop (down)
+      { hasFire: false, hasDrop: false, dropDirection: 'down' },      // 25: nothing
+    ]
+    
+    // Cycle through pattern for all platforms (1-based indexing)
+    const index = ((platformId - 1) % 25)
+    return basePattern[index]
   }
 
   // Generate platforms (dynamic difficulty)
@@ -988,10 +1036,51 @@ export default function BaronWeb() {
     const coins: Coin[] = []
     const COIN_W = 26
     const COIN_H = 26
+    const DROP_W = 42
+    const DROP_H = 42
 
     platforms.forEach((platform) => {
-      // 78% chance to spawn a coin on each platform (60% * 1.3 = 78%)
-      if (!platform.hasFire && gameRandom.next() < 0.78) {
+      // If platform has a drop, place 3 coins near the drop (more challenging)
+      if (platform.hasDrop && gameRandom.next() < 0.85) {
+        // Calculate drop position
+        const dropX = platform.x + platform.width - DROP_W - 5
+        const dropCenterX = dropX + DROP_W / 2
+        
+        // Place 3 coins near the drop at half the distance (25-40px instead of 50-80px)
+        // Use specific horizontal positions, all aligned at same vertical position
+        const coinOffsets = [-40, -25, 30]  // Left, center-left, right from drop center
+        
+        // Calculate Y position - consistent 8px gap from platform
+        let coinY
+        if (platform.dropDirection === 'up') {
+          // Drop is above, place coins above platform with 8px gap
+          coinY = platform.y - COIN_H - 8
+        } else {
+          // Drop is below, place coins below platform with 8px gap
+          coinY = platform.y + platform.height + 8
+        }
+        
+        for (let coinIndex = 0; coinIndex < 3; coinIndex++) {
+          const offset = coinOffsets[coinIndex]
+          const coinX = dropCenterX + offset - COIN_W / 2
+          
+          // Ensure coin stays within reasonable bounds
+          const finalX = Math.max(platform.x + 5, Math.min(coinX, platform.x + platform.width - COIN_W - 5))
+          
+          const newCoin = {
+            x: Math.round(finalX),
+            y: Math.round(coinY),
+            width: COIN_W,
+            height: COIN_H,
+            collected: false,
+          }
+
+          // Skip collision check with other coins in this group, only check fire/drop
+          coins.push(newCoin)
+        }
+      }
+      // 78% chance to spawn a coin on each platform without fire/drop (60% * 1.3 = 78%)
+      else if (!platform.hasFire && !platform.hasDrop && gameRandom.next() < 0.78) {
         let attempts = 0
         let coinPlaced = false
         
@@ -1019,8 +1108,8 @@ export default function BaronWeb() {
         }
       }
 
-      // 30% chance to spawn a coin under the platform
-      if (gameRandom.next() < 0.3) {
+      // 30% chance to spawn a coin under the platform (only for safe platforms)
+      if (!platform.hasFire && !platform.hasDrop && gameRandom.next() < 0.3) {
         let attempts = 0
         let coinPlaced = false
         
@@ -1256,6 +1345,10 @@ export default function BaronWeb() {
 
     const generatedPlatforms = generatePlatforms(800, 20, 6) // Start from ID 6
     platforms.push(...generatedPlatforms)
+    
+    // Generate coins for platforms 6-25
+    const additionalCoins = generateCoinsForPlatforms(generatedPlatforms)
+    coins.push(...additionalCoins)
     
     // Update next platform ID after generating platforms
     setNextPlatformId(26) // Next platforms will start from 26
@@ -2109,14 +2202,22 @@ export default function BaronWeb() {
     // Clouds
     clouds.forEach((cloud) => {
       if (cloud.x + cloud.width > camera.x && cloud.x < camera.x + canvas.width) {
-        if (cloudImageRef.current) {
+        if (cloudImageRef.current && cloudImageRef.current.length >= 2) {
+          const cloudImage = cloudImageRef.current[cloud.type - 1] // type 1 -> index 0, type 2 -> index 1
           ctx.save()
           ctx.globalAlpha = cloud.opacity
-          ctx.drawImage(cloudImageRef.current, cloud.x, cloud.y, cloud.width, cloud.height)
+          ctx.drawImage(cloudImage, cloud.x, cloud.y, cloud.width, cloud.height)
           ctx.restore()
         }
       }
     })
+
+    // Advance fire frame every 300ms (outside loop to update once per render)
+    const fireTime = Date.now()
+    if (fireTime - lastFireFrameTimeRef.current > 300) {
+      setCurrentFireFrame((prev) => (prev === 0 ? 1 : 0))
+      lastFireFrameTimeRef.current = fireTime
+    }
 
     // Platforms and platform fires
     platforms.forEach((platform, index) => {
@@ -2127,11 +2228,6 @@ export default function BaronWeb() {
 
         // Platform fire drawing
         if (platform.hasFire && fireImageRef.current && Array.isArray(fireImageRef.current)) {
-          const currentTime = Date.now()
-          if (currentTime - lastFireFrameTimeRef.current > 300) {
-            setCurrentFireFrame((prev) => (prev === 0 ? 1 : 0))
-            lastFireFrameTimeRef.current = currentTime
-          }
           const fireWidth = 35 // 30% bigger (27 * 1.3)
           const fireHeight = 42 // 30% bigger (32 * 1.3)
           
@@ -2395,7 +2491,7 @@ export default function BaronWeb() {
       {/* Top panel outside the game frame */}
       <div className="w-[390px]">
         <div
-          className="px-4 py-[13px] rounded-t-lg rounded-b-none shadow-lg select-none"
+          className="px-4 py-[20px] rounded-t-lg rounded-b-none shadow-lg select-none"
           style={{
             background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
             fontFamily: "Rethink Sans, sans-serif",
@@ -2413,8 +2509,8 @@ export default function BaronWeb() {
               {[1, 2, 3].map((heartIndex) => (
                 <svg
                   key={heartIndex}
-                  width="22"
-                  height="22"
+                  width="26"
+                  height="26"
                   viewBox="0 0 24 24"
                   className="drop-shadow-lg"
                 >
@@ -2452,43 +2548,47 @@ export default function BaronWeb() {
           onClick={handleCanvasClick}
           className="border-b-2 border-gray-300 border-x-0 border-t-0 cursor-pointer bg-white rounded-b-lg rounded-t-none"
         />
+      </div>
 
-        {countdown !== null && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
-            <div className="text-center">
-              <div
-                className="text-4xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
-                style={{ fontFamily: "Rethink Sans, sans-serif" }}
-              >
-                {countdown === 'READY' ? 'Ready?' : countdown}
-              </div>
+      {/* Countdown overlay - positioned at root level */}
+      {countdown !== null && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+          <div className="text-center">
+            <div
+              className="text-4xl font-bold text-white drop-shadow-2xl select-none animate-pulse"
+              style={{ fontFamily: "Rethink Sans, sans-serif" }}
+            >
+              {countdown === 'READY' ? 'Ready?' : countdown}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {isGameOver && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
-            <div className="relative">
-              {/* Main overlay panel */}
-              <div
-                className="bg-white rounded-2xl p-8 text-center shadow-2xl mx-3 flex flex-col"
-                style={{ fontFamily: "Rethink Sans, sans-serif", minWidth: "320px" }}
-              >
-                {/* Coal Jack Title */}
-                <h1
-                  className="text-2xl font-bold text-gray-800 mb-4 select-none"
-                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                >
-                  COAL JACK
-                </h1>
+      {/* Game Over Modal - positioned at root level */}
+      {isGameOver && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+          {/* Main overlay panel */}
+          <div
+             className="bg-white rounded-2xl p-8 text-center shadow-2xl flex flex-col"
+             style={{ fontFamily: "Rethink Sans, sans-serif", minWidth: "320px", maxWidth: "400px" }}
+           >
+                 {/* Brand Logo */}
+                 <div className="mb-4 flex justify-center">
+                   <img 
+                     src="/brand.svg" 
+                     alt="Brand Logo" 
+                     className="w-32 h-auto select-none"
+                   />
+                 </div>
 
-                {/* Game Over text */}
-                <h2
-                  className="text-3xl font-bold text-red-600 mb-6 select-none"
-                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                >
-                  GAME OVER
-                </h2>
+                 {/* Game Over Image */}
+                 <div className="mb-6 flex justify-center">
+                   <img 
+                     src="/game-over.png" 
+                     alt="Game Over" 
+                     className="w-44 h-auto select-none"
+                   />
+                 </div>
 
                 {/* New Best Score notification */}
                 {isNewBestScore && (
@@ -2502,34 +2602,41 @@ export default function BaronWeb() {
                   </div>
                 )}
 
-                {/* Scores grouped together */}
-                <div className="mb-8 flex-grow flex flex-col justify-center">
-                  <p
-                    className="text-xl text-gray-600 mb-2 select-none"
-                    style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                  >
-                    Score: {score}
-                  </p>
-                  {getBestScore() > 0 && (
-                    <p className="text-base text-gray-500 select-none" style={{ fontFamily: "Rethink Sans, sans-serif" }}>
-                      Best Score: {getBestScore()}
-                    </p>
-                  )}
-                </div>
+                 {/* Scores grouped together */}
+                 <div className="mb-8 flex-grow flex flex-col justify-center">
+                   <p
+                     className="text-xl text-black mb-2 select-none uppercase font-semibold"
+                     style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                   >
+                     Score: {score}
+                   </p>
+                   {getBestScore() > 0 && (
+                     <div className="flex items-center justify-center gap-2">
+                       <img src="/trophy-02.svg" alt="Trophy" className="w-5 h-5 select-none" style={{ filter: "grayscale(100%) brightness(0.5)" }} />
+                       <p className="text-base text-black select-none uppercase font-medium" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
+                         Best Score: {getBestScore()}
+                       </p>
+                     </div>
+                   )}
+                 </div>
 
-                {/* Start Again Button - at bottom */}
-                <button
-                  onClick={startAgain}
-                  className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl text-lg transition-all duration-200 hover:scale-105 active:scale-95 select-none"
-                  style={{ fontFamily: "Rethink Sans, sans-serif" }}
-                >
-                  START AGAIN
-                </button>
-              </div>
+                 {/* Start Again Button - at bottom */}
+                 <button
+                   onClick={startAgain}
+                   className="bg-black hover:bg-gray-900 text-white font-medium transition-all duration-200 hover:scale-105 active:scale-95 select-none mx-auto"
+                   style={{ 
+                     fontFamily: "Instrument Sans, sans-serif",
+                     fontSize: "17px",
+                     borderRadius: "40px",
+                     width: "153px",
+                     height: "53px"
+                   }}
+                 >
+                   Start Again
+                 </button>
             </div>
           </div>
         )}
-      </div>
 
       {/* Platform Numbers Display - positioned below each platform */}
       {showPlatformNumbers && gameStateRef.current && (
