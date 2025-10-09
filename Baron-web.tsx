@@ -597,7 +597,7 @@ export default function BaronWeb() {
     } catch {
       // no-op
     }
-  }, [soundEnabled, stopBackgroundMusic])
+  }, [soundEnabled])
 
   const playBackgroundMusic = useCallback(() => {
     if (!soundEnabled.bgMusic || !backgroundMusicRef.current) return
