@@ -292,6 +292,7 @@ export default function BaronWeb() {
   const lastFireFrameTimeRef = useRef(0)
   const lastCoinFrameTimeRef = useRef(0)
   const gameOverAudioRef = useRef<HTMLAudioElement | null>(null)
+  const yeahBoyAudioRef = useRef<HTMLAudioElement | null>(null)
   const lastGameTimeRef = useRef(performance.now())
   const TARGET_FPS = 60
   const FRAME_TIME = 1000 / TARGET_FPS // 16.67ms for 60fps
@@ -556,6 +557,16 @@ export default function BaronWeb() {
     }
   }, [soundEnabled])
 
+  const playYeahBoySound = useCallback(() => {
+    if (!soundEnabled.success || !yeahBoyAudioRef.current) return
+    try {
+      yeahBoyAudioRef.current.currentTime = 0
+      yeahBoyAudioRef.current.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
+  }, [soundEnabled])
+
   const playLandSound = useCallback(() => {
     if (!soundEnabled.land || !landAudioRef.current) return
     try {
@@ -776,11 +787,18 @@ export default function BaronWeb() {
     gameOverAudio.load()
     gameOverAudioRef.current = gameOverAudio
 
+    // Yeah boy sound for flame touch
+    const yeahBoyAudio = new Audio('/yeah-boy-02.mp3')
+    yeahBoyAudio.volume = 0.6
+    yeahBoyAudio.preload = 'auto'
+    yeahBoyAudio.load()
+    yeahBoyAudioRef.current = yeahBoyAudio
+
     // Unlock audio on first user interaction (browser autoplay policy)
     const unlockAudio = () => {
       // Unlocking audio
       // Play and immediately pause each audio to unlock them
-      const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio]
+      const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio, yeahBoyAudio]
       audios.forEach(audio => {
         audio.play().then(() => {
           audio.pause()
@@ -1792,7 +1810,8 @@ export default function BaronWeb() {
       if (!st.isDead && checkFireCollision(player, platform)) {
         const newLives = Math.min(lives + 1, 3) // Add 1 life (max 3)
         setLives(newLives)
-        playSuccessSound()
+        playSuccessSound() // Original flame sound
+        playYeahBoySound() // New "yeah boy" sound
         st.fireStateStartTime = Date.now() // Fire visual effect for 1.8s
         console.log('🔥 FLAME TOUCHED! Fire state started at:', st.fireStateStartTime, {
           hasFireImages: !!fireStateImageRef.current,
@@ -2037,6 +2056,7 @@ export default function BaronWeb() {
     playGameOverMusic,
     playCoinCollectSound,
     playSuccessSound,
+    playYeahBoySound,
     playLandSound,
     playLevelUpSound,
     playVortexSound,
