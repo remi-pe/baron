@@ -768,7 +768,7 @@ export default function BaronWeb() {
 
     // Land sound
     const landAudio = new Audio('/land-sound.wav')
-    landAudio.volume = 0.3
+    landAudio.volume = 0.15 // Reduced by 50% (was 0.3)
     landAudio.preload = 'auto'
     landAudio.load()
     landAudioRef.current = landAudio
