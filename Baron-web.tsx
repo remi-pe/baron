@@ -2576,7 +2576,7 @@ export default function BaronWeb() {
         <div
           className="px-4 py-[20px] rounded-t-lg rounded-b-none shadow-lg select-none"
           style={{
-            background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)",
             fontFamily: "Rethink Sans, sans-serif",
           }}
         >
