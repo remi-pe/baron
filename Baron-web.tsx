@@ -293,6 +293,7 @@ export default function BaronWeb() {
   const lastCoinFrameTimeRef = useRef(0)
   const gameOverAudioRef = useRef<HTMLAudioElement | null>(null)
   const yeahBoyAudioRef = useRef<HTMLAudioElement | null>(null)
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
   const lastGameTimeRef = useRef(performance.now())
   const TARGET_FPS = 60
   const FRAME_TIME = 1000 / TARGET_FPS // 16.67ms for 60fps
@@ -580,6 +581,9 @@ export default function BaronWeb() {
   const playGameOverMusic = useCallback(() => {
     if (!soundEnabled.gameOver) return
     try {
+      // Stop background music when game ends
+      stopBackgroundMusic()
+      
       // Stop any existing game over audio
       if (gameOverAudioRef.current) {
         gameOverAudioRef.current.pause()
@@ -593,7 +597,25 @@ export default function BaronWeb() {
     } catch {
       // no-op
     }
+  }, [soundEnabled, stopBackgroundMusic])
+
+  const playBackgroundMusic = useCallback(() => {
+    if (!soundEnabled.bgMusic || !backgroundMusicRef.current) return
+    try {
+      backgroundMusicRef.current.currentTime = 0
+      backgroundMusicRef.current.loop = true
+      backgroundMusicRef.current.play().catch(() => { /* no-op */ })
+    } catch {
+      // no-op
+    }
   }, [soundEnabled])
+
+  const stopBackgroundMusic = useCallback(() => {
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.pause()
+      backgroundMusicRef.current.currentTime = 0
+    }
+  }, [])
 
   const playLevelUpSound = useCallback(() => {
     if (!soundEnabled.bgMusic || !levelUpAudioRef.current) return
@@ -794,11 +816,18 @@ export default function BaronWeb() {
     yeahBoyAudio.load()
     yeahBoyAudioRef.current = yeahBoyAudio
 
+    // Background music
+    const backgroundMusic = new Audio('/background-music.mp3')
+    backgroundMusic.volume = 0.18 // 60% of typical sound effect volume (0.3)
+    backgroundMusic.preload = 'auto'
+    backgroundMusic.load()
+    backgroundMusicRef.current = backgroundMusic
+
     // Unlock audio on first user interaction (browser autoplay policy)
     const unlockAudio = () => {
       // Unlocking audio
       // Play and immediately pause each audio to unlock them
-      const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio, yeahBoyAudio]
+      const audios = [dropHitAudio, coinAudio, flameAudio, landAudio, levelUpAudio, gameOverAudio, yeahBoyAudio, backgroundMusic]
       audios.forEach(audio => {
         audio.play().then(() => {
           audio.pause()
@@ -2058,6 +2087,8 @@ export default function BaronWeb() {
     lives,
     playOuchSound,
     playGameOverMusic,
+    playBackgroundMusic,
+    stopBackgroundMusic,
     playCoinCollectSound,
     playSuccessSound,
     playYeahBoySound,
@@ -2579,10 +2610,11 @@ export default function BaronWeb() {
         setCountdown(null)
         initializeGame()
         setIsPlaying(true)
+        playBackgroundMusic() // Start background music when game begins
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [countdown, initializeGame])
+  }, [countdown, initializeGame, playBackgroundMusic])
 
   return (
     <div className="flex flex-row items-start justify-center min-h-screen bg-gray-100 p-2 gap-4">
