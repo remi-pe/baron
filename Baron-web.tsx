@@ -1442,7 +1442,7 @@ export default function BaronWeb() {
         velocityX: 0,
         velocityY: 0,
         onGround: true,
-        wasOnGround: false,
+        wasOnGround: true, // Start as true to prevent landing sound on first frame
         color: "#FF0000",
       },
       platforms,
