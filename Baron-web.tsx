@@ -1437,7 +1437,7 @@ export default function BaronWeb() {
       // runtime
       startTimeMs,
 
-      gameSpeed: 1.4, // Start at 1.4 speed
+      gameSpeed: 1.8, // Start at 1.8 speed
       platformsPassed: 0,
       lastPlatformX: platforms[platforms.length - 1].x + platforms[platforms.length - 1].width + 200,
       lastCloudX: 20 * 130,
@@ -1621,7 +1621,7 @@ export default function BaronWeb() {
     const targetSpeedBase = 1.5 + levelProgress * 1.5 // 1.5 at start, 3.0 at platform 20
 
     // Level-based speed progression - consistent speed per level, 20% increase each level
-    const baseSpeed = 1.4
+    const baseSpeed = 1.8
     const speedMultiplier = Math.pow(1.2, currentLevel - 1) // 20% increase per level
     const targetSpeed = baseSpeed * speedMultiplier
     st.gameSpeed = targetSpeed
