@@ -626,10 +626,37 @@ export default function BaronWeb() {
     img2.onload = onLoad
   }, [])
 
-  // Load fire state images (hurt animation)
-  // Fire state images removed - F1, F2, F3 deleted (using character states instead)
+  // Load fire state images (hurt animation when touching flame)
   useEffect(() => {
-    // Placeholder for future fire state implementation
+    const cacheBuster = Date.now()
+    const onFire1 = new Image()
+    const onFire2 = new Image()
+    const onFire3 = new Image()
+    onFire1.crossOrigin = "anonymous"
+    onFire2.crossOrigin = "anonymous"
+    onFire3.crossOrigin = "anonymous"
+    onFire1.src = `/ON_FIRE_1.svg?v=${cacheBuster}`
+    onFire2.src = `/ON_FIRE_2.svg?v=${cacheBuster}`
+    onFire3.src = `/ON_FIRE_3.svg?v=${cacheBuster}`
+    let loaded = 0
+    const onLoad = () => {
+      loaded++
+      console.log(`✅ Loaded fire state image ${loaded}/3`)
+      if (loaded === 3) {
+        fireStateImageRef.current = [onFire1, onFire2, onFire3]
+        console.log("✅ ALL FIRE STATE IMAGES LOADED!", {
+          width1: onFire1.width,
+          width2: onFire2.width,
+          width3: onFire3.width
+        })
+      }
+    }
+    onFire1.onload = onLoad
+    onFire2.onload = onLoad
+    onFire3.onload = onLoad
+    onFire1.onerror = (e) => console.error("❌ FAILED to load ON_FIRE_1.svg", e)
+    onFire2.onerror = (e) => console.error("❌ FAILED to load ON_FIRE_2.svg", e)
+    onFire3.onerror = (e) => console.error("❌ FAILED to load ON_FIRE_3.svg", e)
   }, [])
 
   // Load cloud images
@@ -1754,6 +1781,11 @@ export default function BaronWeb() {
         setLives(newLives)
         playSuccessSound()
         st.fireStateStartTime = Date.now() // Fire visual effect for 1.8s
+        console.log('🔥 FLAME TOUCHED! Fire state started at:', st.fireStateStartTime, {
+          hasFireImages: !!fireStateImageRef.current,
+          imageCount: fireStateImageRef.current?.length,
+          images: fireStateImageRef.current
+        })
         
         // Cancel invulnerability when touching flame
         st.invulnerable = false
@@ -2340,7 +2372,18 @@ export default function BaronWeb() {
 
     // Player (with dead state, fire-state hurt animation)
     const now = Date.now()
-    const showFireState = now - st.fireStateStartTime < 1800 && !st.isDead
+    const timeSinceFireStart = now - st.fireStateStartTime
+    const showFireState = timeSinceFireStart < 1800 && st.fireStateStartTime > 0 && !st.isDead
+    
+    // Debug log (only first 10 frames to avoid spam)
+    if (showFireState && timeSinceFireStart < 1000) {
+      console.log('🔥 FIRE STATE ACTIVE:', {
+        timeSinceStart: timeSinceFireStart,
+        hasImages: !!fireStateImageRef.current,
+        imageArray: fireStateImageRef.current,
+        frameIndex: Math.floor((timeSinceFireStart / 300) % 3)
+      })
+    }
 
     // Dead state rendering
     if (st.isDead) {
@@ -2370,7 +2413,8 @@ export default function BaronWeb() {
       
       ctx.restore()
     } else if (showFireState && fireStateImageRef.current) {
-      const idx = Math.floor(((now - st.fireStateStartTime) / 300) % 3)
+      const idx = Math.floor((timeSinceFireStart / 300) % 3)
+      console.log('🎨 DRAWING FIRE FRAME:', idx)
       ctx.save()
       
       if (st.pullDirection < 0) {
