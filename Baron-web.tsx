@@ -292,6 +292,9 @@ export default function BaronWeb() {
   const lastFireFrameTimeRef = useRef(0)
   const lastCoinFrameTimeRef = useRef(0)
   const gameOverAudioRef = useRef<HTMLAudioElement | null>(null)
+  const lastGameTimeRef = useRef(performance.now())
+  const TARGET_FPS = 60
+  const FRAME_TIME = 1000 / TARGET_FPS // 16.67ms for 60fps
 
   const [score, setScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -1597,7 +1600,7 @@ export default function BaronWeb() {
 
 
   // Update
-  const updateGame = useCallback(() => {
+  const updateGame = useCallback((deltaMultiplier: number = 1) => {
     if (!gameStateRef.current || isGameOver) return
 
     const st = gameStateRef.current
@@ -1685,7 +1688,7 @@ export default function BaronWeb() {
 
     // Move clouds
     st.clouds.forEach((cloud) => {
-      cloud.x += st.gameSpeed * 0.5
+      cloud.x += st.gameSpeed * 0.5 * deltaMultiplier
     })
 
     // AI Mode: Simple and effective gameplay logic
@@ -1727,15 +1730,15 @@ export default function BaronWeb() {
     // Horizontal input (disabled in AI mode)
     if (!isAIMode) {
       if (keysRef.current.has("a") || keysRef.current.has("arrowleft")) {
-        player.velocityX = Math.max(player.velocityX - 0.2, -2.4)
+        player.velocityX = Math.max(player.velocityX - 0.2 * deltaMultiplier, -2.4)
       } else if (keysRef.current.has("d") || keysRef.current.has("arrowright")) {
-        player.velocityX = Math.min(player.velocityX + 0.2, 3.2)
+        player.velocityX = Math.min(player.velocityX + 0.2 * deltaMultiplier, 3.2)
       } else {
-        player.velocityX *= 0.82
+        player.velocityX *= Math.pow(0.82, deltaMultiplier)
       }
     } else {
       // AI mode: minimal horizontal movement
-      player.velocityX *= 0.82
+      player.velocityX *= Math.pow(0.82, deltaMultiplier)
     }
 
     // Jump (opposite of gravity direction)
@@ -1759,15 +1762,15 @@ export default function BaronWeb() {
           player.velocityY = st.pullSpeed * st.pullDirection
         }
         // Add acceleration each frame (High gravity: 0.75)
-        player.velocityY += 0.75 * st.pullDirection
+        player.velocityY += 0.75 * st.pullDirection * deltaMultiplier
       } else {
         player.velocityY = 0 // Locked to platform when grounded
       }
     }
 
     // Position
-    player.x += player.velocityX
-    player.y += player.velocityY
+    player.x += player.velocityX * deltaMultiplier
+    player.y += player.velocityY * deltaMultiplier
 
     // Platform collisions and scoring (skip when dead)
     if (!st.isDead) {
@@ -2022,7 +2025,7 @@ export default function BaronWeb() {
 
     // Camera and auto-scroll (pause when dead to show DEAD state)
     if (!st.isDead) {
-      player.x += st.gameSpeed
+      player.x += st.gameSpeed * deltaMultiplier
     }
     st.camera.x = player.x - CANVAS_W / 3
     st.camera.y = 0
@@ -2505,9 +2508,14 @@ export default function BaronWeb() {
   }, [currentFrame, currentFireFrame, score, getLevelBackgroundColor])
 
   // Loop
-  const gameLoop = useCallback(() => {
+  const gameLoop = useCallback((currentTime: number) => {
     if (isPlaying && !isGameOver) {
-      updateGame()
+      // Calculate delta time for frame-rate independence
+      const deltaTime = currentTime - lastGameTimeRef.current
+      const deltaMultiplier = deltaTime / FRAME_TIME // 1.0 at 60fps, 2.0 at 30fps, 0.5 at 120fps
+      lastGameTimeRef.current = currentTime
+      
+      updateGame(deltaMultiplier)
       render()
       // Update frame counter every 2 frames for smooth platform number movement
       setFrameCounter(prev => (prev + 1) % 2)
@@ -2518,7 +2526,8 @@ export default function BaronWeb() {
   // Start game loop when playing
   useEffect(() => {
     if (isPlaying && !isGameOver) {
-      gameLoop()
+      lastGameTimeRef.current = performance.now() // Reset time reference
+      animationFrameRef.current = requestAnimationFrame(gameLoop)
     }
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
