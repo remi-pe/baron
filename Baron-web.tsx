@@ -1277,7 +1277,7 @@ export default function BaronWeb() {
             collected: false,
           }
 
-          if (!checkCoinCollision(newCoin, coins, platform2)) {
+          if (!checkCoinCollision(newCoin, coins, platform3)) {
             coins.push(newCoin)
             coinPlaced = true
           }
