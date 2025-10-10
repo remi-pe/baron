@@ -2593,9 +2593,9 @@ export default function BaronWeb() {
         />
       </div>
 
-      {/* Countdown overlay - positioned at root level */}
+      {/* Countdown overlay - positioned over game frame */}
       {countdown !== null && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+        <div className="absolute inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
           <div className="text-center flex flex-col items-center justify-center">
             <img 
               src="/ready-1.svg" 
