@@ -2148,16 +2148,9 @@ export default function BaronWeb() {
   // Render
   const render = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas || !gameStateRef.current) {
-      console.log('Render skipped: canvas or gameState missing')
-      return
-    }
+    if (!canvas || !gameStateRef.current) return
     const ctx = canvas.getContext("2d")
-    if (!ctx) {
-      console.log('Render skipped: no context')
-      return
-    }
-    console.log('Rendering game...')
+    if (!ctx) return
 
     const st = gameStateRef.current
     const { player, platforms, clouds, camera } = st
@@ -2501,7 +2494,6 @@ export default function BaronWeb() {
 
   // Auto-start on mount
   useEffect(() => {
-    console.log('Auto-starting game...')
     initializeGame()
     setIsPlaying(true)
   }, [initializeGame])
