@@ -1156,12 +1156,12 @@ export default function BaronWeb() {
     const platform5Items = getPlatformItems(5)
 
     const platforms: Platform[] = [
-      // First bottom platform - positioned much further left
-      { x: -200, y: 317, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 1 },
-      // First top platform - same length and aligned with bottom platform, also far left
-      { x: -200, y: 250, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 2 },
+      // First bottom platform - positioned further left but not as far
+      { x: -100, y: 317, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 1 },
+      // First top platform - same length and aligned with bottom platform
+      { x: -100, y: 250, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 2 },
       {
-        x: 400,
+        x: 200,
         y: 100,
         width: pickRatioWidth(),
         height: 6,
