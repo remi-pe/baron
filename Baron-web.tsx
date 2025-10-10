@@ -2596,11 +2596,11 @@ export default function BaronWeb() {
       {/* Countdown overlay - positioned at root level */}
       {countdown !== null && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
-          <div className="text-center">
+          <div className="text-center flex flex-col items-center justify-center">
             <img 
               src="/ready-1.svg" 
               alt="Ready" 
-              className="w-64 h-auto select-none animate-pulse"
+              className="w-64 h-auto select-none animate-pulse mx-auto"
             />
           </div>
         </div>
