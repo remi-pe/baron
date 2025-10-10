@@ -1156,7 +1156,10 @@ export default function BaronWeb() {
     const platform5Items = getPlatformItems(5)
 
     const platforms: Platform[] = [
-      { x: 0, y: 317, width: pickRatioWidth() * 2, height: 6, color: "#8B4513", passed: false, hasFire: platform1Items.hasFire, hasDrop: platform1Items.hasDrop, dropDirection: platform1Items.dropDirection, id: 1 },
+      // First platform - longer for easier start
+      { x: 0, y: 317, width: 200, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 1 },
+      // Training platform above the first one - safe practice area
+      { x: 50, y: 250, width: 120, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 2 },
       {
         x: 170,
         y: 100,
@@ -1167,19 +1170,19 @@ export default function BaronWeb() {
         hasFire: platform2Items.hasFire,
         hasDrop: platform2Items.hasDrop,
         dropDirection: platform2Items.dropDirection,
-        id: 2,
+        id: 3,
       },
       {
         x: 330,
         y: 240,
-        width: pickRatioWidth() * 1.4, // Make platform 3 40% longer
+        width: pickRatioWidth() * 1.4, // Make platform 4 40% longer
         height: 6,
         color: "#8B4513",
         passed: false,
         hasFire: platform3Items.hasFire,
         hasDrop: platform3Items.hasDrop,
         dropDirection: platform3Items.dropDirection,
-        id: 3,
+        id: 4,
       },
       {
         x: 480,
@@ -1191,7 +1194,7 @@ export default function BaronWeb() {
         hasFire: platform4Items.hasFire,
         hasDrop: platform4Items.hasDrop,
         dropDirection: platform4Items.dropDirection,
-        id: 4,
+        id: 5,
       },
       {
         x: 640,
@@ -1203,15 +1206,15 @@ export default function BaronWeb() {
         hasFire: platform5Items.hasFire,
         hasDrop: platform5Items.hasDrop,
         dropDirection: platform5Items.dropDirection,
-        id: 5,
+        id: 6,
       },
     ]
 
     const coins = generateCoinsForPlatforms(platforms)
 
     // Add extra coins to platform 4 (index 3)
-    if (platforms.length >= 4) {
-      const platform4 = platforms[3]
+    if (platforms.length >= 5) {
+      const platform4 = platforms[4]
       const COIN_W = 26
       const COIN_H = 26
 
@@ -1246,25 +1249,25 @@ export default function BaronWeb() {
       }
     }
 
-    // Add extra coins to platform 2 (index 1)
-    if (platforms.length >= 2) {
-      const platform2 = platforms[1]
+    // Add extra coins to platform 3 (index 2)
+    if (platforms.length >= 3) {
+      const platform3 = platforms[2]
       const COIN_W = 26
       const COIN_H = 26
 
-      // Add 5 coins on platform 2 with collision avoidance
+      // Add 5 coins on platform 3 with collision avoidance
       for (let i = 0; i < 5; i++) {
         let attempts = 0
         let coinPlaced = false
         
         while (attempts < 10 && !coinPlaced) {
           // Try different positions around the planned location
-          const baseX = platform2.x + (i + 1) * (platform2.width / 6)
+          const baseX = platform3.x + (i + 1) * (platform3.width / 6)
           const coinX = baseX + (gameRandom.next() - 0.5) * 30 - COIN_W / 2 // Add some randomness
-          const coinY = platform2.y - COIN_H - 8
+          const coinY = platform3.y - COIN_H - 8
 
           // Ensure coin stays within platform bounds
-          const finalX = Math.max(platform2.x + 5, Math.min(coinX, platform2.x + platform2.width - COIN_W - 5))
+          const finalX = Math.max(platform3.x + 5, Math.min(coinX, platform3.x + platform3.width - COIN_W - 5))
           
           const newCoin = {
             x: Math.round(finalX),
@@ -1286,8 +1289,8 @@ export default function BaronWeb() {
     // Platform 5 only has drop (no fire)
 
     // Add extra coins to platform 7 (index 6)
-    if (platforms.length >= 7) {
-      const platform7 = platforms[6]
+    if (platforms.length >= 8) {
+      const platform7 = platforms[7]
       const COIN_W = 26
       const COIN_H = 26
 
@@ -1322,15 +1325,15 @@ export default function BaronWeb() {
       }
     }
 
-    const generatedPlatforms = generatePlatforms(800, 20, 6) // Start from ID 6
+    const generatedPlatforms = generatePlatforms(800, 20, 7) // Start from ID 7
     platforms.push(...generatedPlatforms)
     
-    // Generate coins for platforms 6-25
+    // Generate coins for platforms 7-26
     const additionalCoins = generateCoinsForPlatforms(generatedPlatforms)
     coins.push(...additionalCoins)
     
     // Update next platform ID after generating platforms
-    setNextPlatformId(26) // Next platforms will start from 26
+    setNextPlatformId(27) // Next platforms will start from 27
 
     // Manual placement tweaks:
     // 1) Place platform 25 closer to platform 24 (horizontal only)
