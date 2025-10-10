@@ -1156,10 +1156,10 @@ export default function BaronWeb() {
     const platform5Items = getPlatformItems(5)
 
     const platforms: Platform[] = [
-      // First platform - longer for easier start
-      { x: 0, y: 317, width: 200, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 1 },
-      // Training platform above the first one - safe practice area
-      { x: 50, y: 250, width: 120, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 2 },
+      // First bottom platform - 1/3 longer than before (267px)
+      { x: 0, y: 317, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 1 },
+      // First top platform - same length and aligned with bottom platform
+      { x: 0, y: 250, width: 267, height: 6, color: "#8B4513", passed: false, hasFire: false, hasDrop: false, dropDirection: 1, id: 2 },
       {
         x: 170,
         y: 100,
@@ -2593,14 +2593,14 @@ export default function BaronWeb() {
         />
       </div>
 
-      {/* Countdown overlay - positioned over game frame */}
+      {/* Countdown overlay - positioned at 350px from top */}
       {countdown !== null && (
-        <div className="absolute inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+        <div className="absolute top-[350px] left-0 right-0 z-50 flex items-center justify-center">
           <div className="text-center flex flex-col items-center justify-center">
             <img 
               src="/ready-1.svg" 
               alt="Ready" 
-              className="w-64 h-auto select-none animate-pulse mx-auto"
+              className="w-48 h-auto select-none animate-pulse mx-auto"
             />
           </div>
         </div>
