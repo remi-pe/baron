@@ -479,9 +479,12 @@ export default function BaronWeb() {
     try {
       backgroundMusicRef.current.currentTime = 0
       backgroundMusicRef.current.loop = true
-      backgroundMusicRef.current.play().catch(() => { /* no-op */ })
-    } catch {
-      // no-op
+      backgroundMusicRef.current.volume = 0.18
+      backgroundMusicRef.current.play().catch((error) => { 
+        console.log('Background music play failed:', error)
+      })
+    } catch (error) {
+      console.log('Background music error:', error)
     }
   }, [soundEnabled])
 
@@ -711,6 +714,14 @@ export default function BaronWeb() {
     backgroundMusic.preload = 'auto'
     backgroundMusic.load()
     backgroundMusicRef.current = backgroundMusic
+    
+    // Debug background music loading
+    backgroundMusic.addEventListener('canplaythrough', () => {
+      console.log('Background music loaded successfully')
+    })
+    backgroundMusic.addEventListener('error', (e) => {
+      console.log('Background music loading error:', e)
+    })
 
     // Unlock audio on first user interaction (browser autoplay policy)
     const unlockAudio = () => {
@@ -2499,6 +2510,7 @@ export default function BaronWeb() {
         setCountdown(null)
         initializeGame()
         setIsPlaying(true)
+        console.log('Starting background music...')
         playBackgroundMusic() // Start background music when game begins
       }, 500)
       return () => clearTimeout(timer)
