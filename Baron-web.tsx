@@ -1478,7 +1478,7 @@ export default function BaronWeb() {
       clouds,
       camera: { x: 0, y: 0 },
 
-      pullSpeed: 9, // Instant pull speed when flipping gravity
+      pullSpeed: 8.5, // Instant pull speed when flipping gravity
       pullDirection: 1, // Start pulling down
 
       // runtime
@@ -1808,8 +1808,8 @@ export default function BaronWeb() {
         if (player.wasOnGround) {
           player.velocityY = st.pullSpeed * st.pullDirection
         }
-        // Add acceleration each frame (Reduced gravity: 0.60)
-        player.velocityY += 0.60 * st.pullDirection * deltaMultiplier
+        // Add acceleration each frame (Reduced gravity: 0.50)
+        player.velocityY += 0.50 * st.pullDirection * deltaMultiplier
       } else {
         player.velocityY = 0 // Locked to platform when grounded
       }
