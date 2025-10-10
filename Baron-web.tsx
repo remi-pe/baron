@@ -2605,11 +2605,11 @@ export default function BaronWeb() {
 
       {/* Game Over Modal - positioned at root level */}
       {isGameOver && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4">
           {/* Main overlay panel */}
           <div
-             className="bg-white rounded-2xl p-8 text-center shadow-2xl flex flex-col"
-             style={{ fontFamily: "Rethink Sans, sans-serif", minWidth: "320px", maxWidth: "400px" }}
+             className="bg-white rounded-2xl p-8 text-center shadow-2xl flex flex-col w-full max-w-sm mx-auto"
+             style={{ fontFamily: "Rethink Sans, sans-serif" }}
            >
                  {/* Brand Logo */}
                  <div className="mb-4 flex justify-center">
